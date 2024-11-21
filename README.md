@@ -13,6 +13,24 @@ By the end of this tutorial, you’ll have created a fully functional WebXR game
   <figcaption>Target Practice Gameplay</figcaption>
 </figure>
 
+### Configure development environment
+
+```shell script
+npm run install
+```
+
+```shell script
+npm run dev
+```
+
+To allow the Quest browser to request content that is hosted locally on a development computer, issue the following `adb` command:
+
+
+```shell script
+adb reverse tcp:5173 tcp:5173
+```
+
+
 ### Developing with an Emulator
 
 This project includes a built-in emulation setup located in `./src/init.js`, powered by [IWER](https://github.com/meta-quest/immersive-web-emulation-runtime/) (Immersive Web Emulation Runtime) and [@iwer/devui](https://github.com/meta-quest/immersive-web-emulation-runtime/tree/main/devui). The emulation setup automatically detects native WebXR support in your browser and activates itself if no native WebXR support is found.
