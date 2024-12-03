@@ -19,6 +19,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@iwer/devui": "^0.2.1",
+    "iwer": "^1.0.4",
     "three": "^0.170.0"
   },
   "devDependencies": {
