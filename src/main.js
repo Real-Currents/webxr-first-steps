@@ -14,12 +14,69 @@ import { DevUI } from '@iwer/devui';
 // iwer setup
 let nativeWebXRSupport = false;
 
+async function setupScene() {
+
+    // Set camera position
+    camera.position.z = 5;
+    camera.position.y = 1;
+
+    // Floor
+    const floorGeometry = new THREE.PlaneGeometry(6, 6);
+    const floorMaterial = new THREE.MeshBasicMaterial({color: 'white'});
+    const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+
+    floor.rotateX(-Math.PI / 2);
+
+    scene.add(floor);
+
+    // Cone
+    const coneGeometry = new THREE.ConeGeometry(0.6, 1.5);
+    const coneMaterial = new THREE.MeshBasicMaterial({color: 'purple'});
+    const cone = new THREE.Mesh(coneGeometry, coneMaterial);
+
+    cone.position.set(0.4, 0.75, -1.5);
+
+    scene.add(cone);
+
+    // Cube
+    const cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
+    const cubeMaterial = new THREE.MeshBasicMaterial({color: 'orange'});
+    const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
+    scene.add(cube);
+    cube.position.set(-0.8, 0.5, -1.5);
+    cube.rotateY(Math.PI / 4);
+
+    // Rotating Cube
+    const rotatingCube = new THREE.Mesh(geometry, material);
+
+    rotatingCube.position.y = 2;
+
+    rotatingCube.rotX = function (x) {
+        // console.log(this);
+        this.rotation.x += x;
+    }
+
+    rotatingCube.rotY = function (y) {
+        // console.log(this);
+        this.rotation.y += y;
+    }
+
+    scene.add(rotatingCube);
+
+    renderer.setAnimationLoop(() => {
+        rotatingCube.rotX(0.01);
+        rotatingCube.rotY(0.01);
+        renderer.render(scene, camera);
+    });
+}
+
 async function initScene() {
 
     if (navigator.xr) {
         nativeWebXRSupport = await navigator.xr.isSessionSupported('immersive-vr');
     }
 
+    // Setup Immersive Web Emulation Runtime (iwer) and emulated XR device (@iwer/devui)
     if (!nativeWebXRSupport) {
         const xrDevice = new XRDevice(metaQuest3);
         xrDevice.installRuntime();
@@ -43,28 +100,7 @@ async function initScene() {
         new DevUI(xrDevice);
     }
 
-    const cube = new THREE.Mesh(geometry, material);
-
-    camera.position.z = 5;
-
-    cube.rotX = function (x) {
-        // console.log(this);
-        this.rotation.x += x;
-    }
-
-    cube.rotY = function (y) {
-        // console.log(this);
-        this.rotation.y += y;
-    }
-
-    scene.add(cube);
-
-    renderer.setAnimationLoop(() => {
-        cube.rotX(0.01);
-        cube.rotY(0.01);
-        renderer.render(scene, camera);
-    });
-
+    await setupScene();
 
     console.log(renderer.domElement);
 
