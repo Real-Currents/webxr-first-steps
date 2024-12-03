@@ -63,6 +63,16 @@ async function setupScene() {
 
     scene.add(rotatingCube);
 
+    // Sphere
+    const sphereGeometry = new THREE.SphereGeometry(0.4);
+    const sphereMaterial = new THREE.MeshBasicMaterial({color: 'red'});
+    const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+
+    sphere.position.set(0.6, 0.4, -0.5);
+    sphere.scale.set(1.2, 1.2, 1.2);
+
+    scene.add(sphere);
+
     renderer.setAnimationLoop(() => {
         rotatingCube.rotX(0.01);
         rotatingCube.rotY(0.01);
