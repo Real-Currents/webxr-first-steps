@@ -1,5 +1,7 @@
 import * as THREE from "three";
+import { GamepadWrapper, XR_BUTTONS } from 'gamepad-wrapper';
 import { VRButton } from "three/addons/webxr/VRButton.js";
+import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory.js";
 
 import camera from "./camera";
 import renderer from "./renderer";
@@ -14,10 +16,10 @@ import { DevUI } from '@iwer/devui';
 // iwer setup
 let nativeWebXRSupport = false;
 
-async function setupScene() {
+async function setupScene (controllers) {
 
     // Set camera position
-    camera.position.z = 5;
+    camera.position.z = 10;
     camera.position.y = 1;
 
     // Floor
@@ -73,6 +75,23 @@ async function setupScene() {
 
     scene.add(sphere);
 
+    // Power Ball
+    const bulletGeometry = new THREE.SphereGeometry(0.02);
+    const bulletMaterial = new THREE.MeshStandardMaterial({color: 'gray'});
+    const bulletPrototype = new THREE.Mesh(bulletGeometry, bulletMaterial);
+
+    function onFrame(delta, time) {
+        if (controllers.right) {
+            const {gamepad, raySpace} = controllers.right;
+            if (gamepad.getButtonClick(XR_BUTTONS.TRIGGER)) {
+                const bullet = bulletPrototype.clone();
+                scene.add(bullet);
+                raySpace.getWorldPosition(bullet.position);
+                raySpace.getWorldQuaternion(bullet.quaternion);
+            }
+        }
+    }
+
     renderer.setAnimationLoop(() => {
         rotatingCube.rotX(0.01);
         rotatingCube.rotY(0.01);
@@ -81,6 +100,12 @@ async function setupScene() {
 }
 
 async function initScene() {
+
+    const controllerModelFactory = new XRControllerModelFactory();
+    const controllers = {
+        left: null,
+        right: null,
+    };
 
     if (navigator.xr) {
         nativeWebXRSupport = await navigator.xr.isSessionSupported('immersive-vr');
@@ -108,9 +133,44 @@ async function initScene() {
             0.9887216687202454,
         );
         new DevUI(xrDevice);
+
+        // controllers.left = xrDevice.controllers.left;
+        // controllers.right = xrDevice.controllers.right;
+
     }
 
-    await setupScene();
+    for (let i = 0; i < 2; i++) {
+        const raySpace = renderer.xr.getController(i);
+        const gripSpace = renderer.xr.getControllerGrip(i);
+        const mesh = controllerModelFactory.createControllerModel(gripSpace);
+
+        gripSpace.add(mesh);
+        // player.add(raySpace, gripSpace);
+
+        raySpace.visible = false;
+        gripSpace.visible = false;
+
+        gripSpace.addEventListener('connected', (e) => {
+            raySpace.visible = true;
+            gripSpace.visible = true;
+            const handedness = e.data.handedness;
+            controllers[handedness] = {
+                raySpace,
+                gripSpace,
+                mesh,
+                gamepad: new GamepadWrapper(e.data.gamepad),
+            };
+        });
+
+        gripSpace.addEventListener('disconnected', (e) => {
+            raySpace.visible = false;
+            gripSpace.visible = false;
+            const handedness = e.data.handedness;
+            controllers[handedness] = null;
+        });
+    }
+
+    await setupScene(controllers);
 
     console.log(renderer.domElement);
 
