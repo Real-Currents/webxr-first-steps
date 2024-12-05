@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import { GamepadWrapper, XR_BUTTONS } from 'gamepad-wrapper';
+// import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { VRButton } from "three/addons/webxr/VRButton.js";
 import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory.js";
 
@@ -15,6 +17,20 @@ import { DevUI } from '@iwer/devui';
 
 // iwer setup
 let nativeWebXRSupport = false;
+
+const environment = new RoomEnvironment(renderer);
+const pmremGenerator = new THREE.PMREMGenerator(renderer);
+scene.environment = pmremGenerator.fromScene(environment).texture;
+
+const player = new THREE.Group();
+scene.add(player);
+player.add(camera);
+
+const controllerModelFactory = new XRControllerModelFactory();
+const controllers = {
+    left: null,
+    right: null,
+};
 
 async function setupScene (controllers) {
 
@@ -65,6 +81,12 @@ async function setupScene (controllers) {
 
     scene.add(rotatingCube);
 
+    // // ... or Controller mesh
+    // const gripSpace = renderer.xr.getControllerGrip(0);
+    // const controllerMesh = controllerModelFactory.createControllerModel(gripSpace);
+    //
+    // scene.add(controllerMesh);
+
     // Sphere
     const sphereGeometry = new THREE.SphereGeometry(0.4);
     const sphereMaterial = new THREE.MeshBasicMaterial({color: 'red'});
@@ -80,32 +102,40 @@ async function setupScene (controllers) {
     const bulletMaterial = new THREE.MeshStandardMaterial({color: 'gray'});
     const bulletPrototype = new THREE.Mesh(bulletGeometry, bulletMaterial);
 
-    function onFrame(delta, time) {
-        if (controllers.right) {
-            const {gamepad, raySpace} = controllers.right;
+    function onFrame (delta, time, globals) {
+        if (controllers.hasOwnProperty("right") && controllers.right !== null) {
+
+            const { gamepad, raySpace } = controllers.right;
+
             if (gamepad.getButtonClick(XR_BUTTONS.TRIGGER)) {
+                console.log("Trigger on right controller was activated:", XR_BUTTONS.TRIGGER, gamepad);
                 const bullet = bulletPrototype.clone();
                 scene.add(bullet);
                 raySpace.getWorldPosition(bullet.position);
                 raySpace.getWorldQuaternion(bullet.quaternion);
+            } else {
+                for (const b in XR_BUTTONS) {
+                    if (XR_BUTTONS.hasOwnProperty(b)) {
+                        // console.log("Check button: ", XR_BUTTONS[b]);
+                        if (gamepad.getButtonClick(XR_BUTTONS[b])) {
+                            console.log("Button on right controller was activated:", XR_BUTTONS[b], gamepad);
+                        }
+                    }
+                }
             }
         }
+
+        rotatingCube.rotX(0.01);
+        rotatingCube.rotY(0.01);
     }
 
     renderer.setAnimationLoop(() => {
-        rotatingCube.rotX(0.01);
-        rotatingCube.rotY(0.01);
+        onFrame(); //(delta, time, globals);
         renderer.render(scene, camera);
     });
 }
 
 async function initScene() {
-
-    const controllerModelFactory = new XRControllerModelFactory();
-    const controllers = {
-        left: null,
-        right: null,
-    };
 
     if (navigator.xr) {
         nativeWebXRSupport = await navigator.xr.isSessionSupported('immersive-vr');
@@ -134,9 +164,6 @@ async function initScene() {
         );
         new DevUI(xrDevice);
 
-        // controllers.left = xrDevice.controllers.left;
-        // controllers.right = xrDevice.controllers.right;
-
     }
 
     for (let i = 0; i < 2; i++) {
@@ -145,12 +172,9 @@ async function initScene() {
         const mesh = controllerModelFactory.createControllerModel(gripSpace);
 
         gripSpace.add(mesh);
-        // player.add(raySpace, gripSpace);
-
-        raySpace.visible = false;
-        gripSpace.visible = false;
 
         gripSpace.addEventListener('connected', (e) => {
+
             raySpace.visible = true;
             gripSpace.visible = true;
             const handedness = e.data.handedness;
@@ -168,7 +192,20 @@ async function initScene() {
             const handedness = e.data.handedness;
             controllers[handedness] = null;
         });
+
+        player.add(raySpace, gripSpace);
+        // raySpace.visible = false;
+        // gripSpace.visible = false;
     }
+
+    function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    window.addEventListener('resize', onWindowResize);
 
     await setupScene(controllers);
 
