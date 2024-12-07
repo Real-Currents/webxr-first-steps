@@ -1,25 +1,35 @@
 import * as THREE from "three";
-import { VRButton } from "three/addons/webxr/VRButton.js";
 
-import camera from "./camera";
-import renderer from "./renderer";
-import scene from "./scene";
+import { XRDevice, metaQuest3 } from 'iwer';
+import { DevUI } from '@iwer/devui';
+import { gsap } from 'gsap';
+import { GamepadWrapper, XR_BUTTONS } from 'gamepad-wrapper';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { VRButton } from "three/addons/webxr/VRButton.js";
+import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory.js";
 
 import geometry from "./geometry";
 import material from "./material";
 
-import { XRDevice, metaQuest3 } from 'iwer';
-import { DevUI } from '@iwer/devui';
+const controllerModelFactory = new XRControllerModelFactory();
+const controllers = {
+    left: null,
+    right: null,
+};
 
-// iwer setup
-let nativeWebXRSupport = false;
+const scene = new THREE.Scene();
 
-async function initScene() {
+async function initScene (setup = (camera, controllers, players) => {}) {
+
+    // iwer setup
+    let nativeWebXRSupport = false;
 
     if (navigator.xr) {
         nativeWebXRSupport = await navigator.xr.isSessionSupported('immersive-vr');
     }
 
+    // Setup Immersive Web Emulation Runtime (iwer) and emulated XR device (@iwer/devui)
     if (!nativeWebXRSupport) {
         const xrDevice = new XRDevice(metaQuest3);
         xrDevice.installRuntime();
@@ -41,37 +51,264 @@ async function initScene() {
             0.9887216687202454,
         );
         new DevUI(xrDevice);
+
     }
 
-    const cube = new THREE.Mesh(geometry, material);
+    const previewWindow = {
+        width: window.innerWidth / 2, // 640,
+        height: window.innerHeight, // 480,
+    };
 
-    camera.position.z = 5;
+    const body = document.body,
+        container = document.createElement('div');
+    container.style = `display: block; background-color: #000; max-width: ${previewWindow.width}px; max-height: ${previewWindow.height}px; overflow: hidden;`;
+    body.appendChild(container);
 
-    cube.rotX = function (x) {
+    console.log(container);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    // renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setSize(previewWindow.width, previewWindow.height);
+    renderer.xr.enabled = true;
+    container.appendChild(renderer.domElement);
+
+    // const camera = cameraFactory(previewWindow.width, previewWindow.height);
+    const camera = new THREE.PerspectiveCamera(
+        50,
+        previewWindow.width / previewWindow.height,
+        0.1,
+        100,
+    );
+    camera.position.set(0, 1.6, 3);
+
+    const controls = new OrbitControls(camera, container);
+    controls.target.set(0, 1.6, 0);
+    controls.update();
+
+    console.log(renderer.domElement);
+
+    container.appendChild(renderer.domElement);
+
+    function onWindowResize() {
+        camera.aspect = previewWindow.width / previewWindow.height;
+        camera.updateProjectionMatrix();
+
+        renderer.setSize(previewWindow.width, previewWindow.height);
+    }
+
+    window.addEventListener('resize', onWindowResize);
+
+    const environment = new RoomEnvironment(renderer);
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmremGenerator.fromScene(environment).texture;
+
+    const player = new THREE.Group();
+    scene.add(player);
+
+    for (let i = 0; i < 2; i++) {
+        const raySpace = renderer.xr.getController(i);
+        const gripSpace = renderer.xr.getControllerGrip(i);
+        const mesh = controllerModelFactory.createControllerModel(gripSpace);
+
+        gripSpace.add(mesh);
+
+        gripSpace.addEventListener('connected', (e) => {
+
+            raySpace.visible = true;
+            gripSpace.visible = true;
+            const handedness = e.data.handedness;
+            controllers[handedness] = {
+                raySpace,
+                gripSpace,
+                mesh,
+                gamepad: new GamepadWrapper(e.data.gamepad),
+            };
+        });
+
+        gripSpace.addEventListener('disconnected', (e) => {
+            raySpace.visible = false;
+            gripSpace.visible = false;
+            const handedness = e.data.handedness;
+            controllers[handedness] = null;
+        });
+
+        player.add(raySpace, gripSpace);
+        // raySpace.visible = false;
+        // gripSpace.visible = false;
+    }
+
+
+    const clock = new THREE.Clock();
+    const onFrameUpdate = await setup(camera, controllers, player);
+
+    renderer.setAnimationLoop(() => {
+        const delta = clock.getDelta();
+        const time = clock.getElapsedTime();
+        Object.values(controllers).forEach((controller) => {
+            if (controller?.gamepad) {
+                controller.gamepad.update();
+            }
+        });
+        onFrameUpdate();
+        renderer.render(scene, camera);
+    });
+
+    const vr_button = VRButton.createButton(renderer);
+    vr_button.className = "vr-button";
+    vr_button.addEventListener('click', async () => {
+
+        console.log("VR Button clicked");
+
+        previewWindow.width = window.innerWidth;
+        previewWindow.height = window.innerHeight;
+
+        renderer.setSize(previewWindow.width, previewWindow.height);
+
+        camera.aspect = previewWindow.width / previewWindow.height;
+        camera.updateProjectionMatrix();
+
+        player.position.z = camera.position.z;
+        player.position.y = camera.position.y;
+
+        renderer.render(scene, camera);
+
+        container.style = `display: block; color: #FFF; font-size: 24px; text-align: center; background-color: #000; max-width: ${previewWindow.width}px; max-height: ${previewWindow.height}px; overflow: hidden;`;
+        container.innerHTML = "Reload page";
+
+        const vrDisplays = [];
+
+        if (navigator.getVRDisplays) {
+            function updateDisplay() {
+                // Call `navigator.getVRDisplays` (before Firefox 59).
+                navigator.getVRDisplays().then(displays => {
+                    constole.log("Checking VR display");
+                    if (!displays.length) {
+                        throw new Error('No VR display found');
+                    } else {
+                        for (const display of displays) vrDisplays.push(display);
+                        console.log("VR displays:", vrDisplays);
+                        container.innerHTML = `<br />
+VR Display Connected!<br />
+Reload page to reset VR scene.
+`
+                    }
+                });
+            }
+
+            // As of Firefox 59, it's preferred to also wait for the `vrdisplayconnect` event to fire.
+            window.addEventListener('vrdisplayconnect', updateDisplay);
+            window.addEventListener('vrdisplaydisconnect', e => console.log.bind(console));
+            window.addEventListener('vrdisplayactivate', e => console.log.bind(console));
+            window.addEventListener('vrdisplaydeactivate', e => console.log.bind(console));
+            window.addEventListener('vrdisplayblur', e => console.log.bind(console));
+            window.addEventListener('vrdisplayfocus', e => console.log.bind(console));
+            window.addEventListener('vrdisplaypointerrestricted', e => console.log.bind(console));
+            window.addEventListener('vrdisplaypointerunrestricted', e => console.log.bind(console));
+            window.addEventListener('vrdisplaypresentchange', e => console.log.bind(console))
+        }
+    });
+
+    container.appendChild(vr_button);
+
+}
+
+async function setupScene (camera, controllers, player) {
+
+    // Set player view
+    player.add(camera);
+
+    // Set camera position
+    camera.position.z = 10;
+    camera.position.y = 1;
+
+    // Floor
+    const floorGeometry = new THREE.PlaneGeometry(6, 6);
+    const floorMaterial = new THREE.MeshBasicMaterial({color: 'white'});
+    const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+
+    floor.rotateX(-Math.PI / 2);
+
+    scene.add(floor);
+
+    // Cone
+    const coneGeometry = new THREE.ConeGeometry(0.6, 1.5);
+    const coneMaterial = new THREE.MeshBasicMaterial({color: 'purple'});
+    const cone = new THREE.Mesh(coneGeometry, coneMaterial);
+
+    cone.position.set(0.4, 0.75, -1.5);
+
+    scene.add(cone);
+
+    // Cube
+    const cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
+    const cubeMaterial = new THREE.MeshBasicMaterial({color: 'orange'});
+    const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
+    scene.add(cube);
+    cube.position.set(-0.8, 0.5, -1.5);
+    cube.rotateY(Math.PI / 4);
+
+    // Rotating Cube
+    const rotatingMesh = (controllers.left === null) ?
+        new THREE.Mesh(geometry, material) :
+        // ... or Controller mesh
+        controllerModelFactory.createControllerModel(controllers.left.gripSpace);
+
+    rotatingMesh.position.y = 2;
+
+    rotatingMesh.rotX = function (x) {
         // console.log(this);
         this.rotation.x += x;
     }
 
-    cube.rotY = function (y) {
+    rotatingMesh.rotY = function (y) {
         // console.log(this);
         this.rotation.y += y;
     }
 
-    scene.add(cube);
+    scene.add(rotatingMesh);
 
-    renderer.setAnimationLoop(() => {
-        cube.rotX(0.01);
-        cube.rotY(0.01);
-        renderer.render(scene, camera);
-    });
+    // Sphere
+    const sphereGeometry = new THREE.SphereGeometry(0.4);
+    const sphereMaterial = new THREE.MeshBasicMaterial({color: 'red'});
+    const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
 
+    sphere.position.set(0.6, 0.4, -0.5);
+    sphere.scale.set(1.2, 1.2, 1.2);
 
-    console.log(renderer.domElement);
+    scene.add(sphere);
 
-    document.body.appendChild(renderer.domElement);
+    // Power Ball
+    const bulletGeometry = new THREE.SphereGeometry(0.02);
+    const bulletMaterial = new THREE.MeshStandardMaterial({color: 'gray'});
+    const bulletPrototype = new THREE.Mesh(bulletGeometry, bulletMaterial);
 
-    document.body.appendChild(VRButton.createButton(renderer));
+    return function () {
+        if (controllers.hasOwnProperty("right") && controllers.right !== null) {
 
+            const { gamepad, raySpace } = controllers.right;
+
+            if (gamepad.getButtonClick(XR_BUTTONS.TRIGGER)) {
+                console.log("Trigger on right controller was activated:", XR_BUTTONS.TRIGGER, gamepad);
+                const bullet = bulletPrototype.clone();
+                scene.add(bullet);
+                raySpace.getWorldPosition(bullet.position);
+                raySpace.getWorldQuaternion(bullet.quaternion);
+            } else {
+                for (const b in XR_BUTTONS) {
+                    if (XR_BUTTONS.hasOwnProperty(b)) {
+                        // console.log("Check button: ", XR_BUTTONS[b]);
+                        if (gamepad.getButtonClick(XR_BUTTONS[b])) {
+                            console.log("Button on right controller was activated:", XR_BUTTONS[b], gamepad);
+                        }
+                    }
+                }
+            }
+        }
+
+        rotatingMesh.rotX(0.01);
+        rotatingMesh.rotY(0.01);
+    }
 }
 
-initScene();
+initScene(setupScene);
