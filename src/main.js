@@ -2,15 +2,12 @@ import * as THREE from "three";
 
 import { XRDevice, metaQuest3 } from 'iwer';
 import { DevUI } from '@iwer/devui';
+import { gsap } from 'gsap';
 import { GamepadWrapper, XR_BUTTONS } from 'gamepad-wrapper';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { VRButton } from "three/addons/webxr/VRButton.js";
 import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory.js";
-
-// import cameraFactory from "./camera";
-// import renderer from "./renderer";
-import scene from "./scene";
 
 import geometry from "./geometry";
 import material from "./material";
@@ -20,6 +17,8 @@ const controllers = {
     left: null,
     right: null,
 };
+
+const scene = new THREE.Scene();
 
 async function initScene (setup = (camera, controllers, players) => {}) {
 
@@ -58,14 +57,21 @@ async function initScene (setup = (camera, controllers, players) => {}) {
     const previewWindow = {
         width: window.innerWidth / 2, // 640,
         height: window.innerHeight, // 480,
-    }
+    };
 
     const body = document.body,
         container = document.createElement('div');
-    container.style = `display: block; max-width: ${previewWindow.width}px; max-height: ${previewWindow.height}px; overflow: hidden;`;
+    container.style = `display: block; background-color: #000; max-width: ${previewWindow.width}px; max-height: ${previewWindow.height}px; overflow: hidden;`;
     body.appendChild(container);
 
     console.log(container);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    // renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setSize(previewWindow.width, previewWindow.height);
+    renderer.xr.enabled = true;
+    container.appendChild(renderer.domElement);
 
     // const camera = cameraFactory(previewWindow.width, previewWindow.height);
     const camera = new THREE.PerspectiveCamera(
@@ -76,29 +82,22 @@ async function initScene (setup = (camera, controllers, players) => {}) {
     );
     camera.position.set(0, 1.6, 3);
 
-    function onWindowResize() {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    }
-
-    window.addEventListener('resize', onWindowResize);
-
     const controls = new OrbitControls(camera, container);
     controls.target.set(0, 1.6, 0);
     controls.update();
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
-    // renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setSize(previewWindow.width, previewWindow.height);
-    renderer.xr.enabled = true;
-    container.appendChild(renderer.domElement);
-
     console.log(renderer.domElement);
 
     container.appendChild(renderer.domElement);
+
+    function onWindowResize() {
+        camera.aspect = previewWindow.width / previewWindow.height;
+        camera.updateProjectionMatrix();
+
+        renderer.setSize(previewWindow.width, previewWindow.height);
+    }
+
+    window.addEventListener('resize', onWindowResize);
 
     const environment = new RoomEnvironment(renderer);
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
@@ -106,7 +105,6 @@ async function initScene (setup = (camera, controllers, players) => {}) {
 
     const player = new THREE.Group();
     scene.add(player);
-    player.add(camera);
 
     for (let i = 0; i < 2; i++) {
         const raySpace = renderer.xr.getController(i);
@@ -141,22 +139,84 @@ async function initScene (setup = (camera, controllers, players) => {}) {
     }
 
 
+    const clock = new THREE.Clock();
     const onFrameUpdate = await setup(camera, controllers, player);
 
     renderer.setAnimationLoop(() => {
-        onFrameUpdate(); //(delta, time, globals);
+        const delta = clock.getDelta();
+        const time = clock.getElapsedTime();
+        Object.values(controllers).forEach((controller) => {
+            if (controller?.gamepad) {
+                controller.gamepad.update();
+            }
+        });
+        onFrameUpdate();
         renderer.render(scene, camera);
     });
 
-    renderer.render(scene, camera);
-
     const vr_button = VRButton.createButton(renderer);
-    vr_button.className = "vr-button"
-    body.appendChild(vr_button);
+    vr_button.className = "vr-button";
+    vr_button.addEventListener('click', async () => {
+
+        console.log("VR Button clicked");
+
+        previewWindow.width = window.innerWidth;
+        previewWindow.height = window.innerHeight;
+
+        renderer.setSize(previewWindow.width, previewWindow.height);
+
+        camera.aspect = previewWindow.width / previewWindow.height;
+        camera.updateProjectionMatrix();
+
+        player.position.z = camera.position.z;
+        player.position.y = camera.position.y;
+
+        renderer.render(scene, camera);
+
+        container.style = `display: block; color: #FFF; font-size: 24px; text-align: center; background-color: #000; max-width: ${previewWindow.width}px; max-height: ${previewWindow.height}px; overflow: hidden;`;
+        container.innerHTML = "Reload page";
+
+        const vrDisplays = [];
+
+        if (navigator.getVRDisplays) {
+            function updateDisplay() {
+                // Call `navigator.getVRDisplays` (before Firefox 59).
+                navigator.getVRDisplays().then(displays => {
+                    constole.log("Checking VR display");
+                    if (!displays.length) {
+                        throw new Error('No VR display found');
+                    } else {
+                        for (const display of displays) vrDisplays.push(display);
+                        console.log("VR displays:", vrDisplays);
+                        container.innerHTML = `<br />
+VR Display Connected!<br />
+Reload page to reset VR scene.
+`
+                    }
+                });
+            }
+
+            // As of Firefox 59, it's preferred to also wait for the `vrdisplayconnect` event to fire.
+            window.addEventListener('vrdisplayconnect', updateDisplay);
+            window.addEventListener('vrdisplaydisconnect', e => console.log.bind(console));
+            window.addEventListener('vrdisplayactivate', e => console.log.bind(console));
+            window.addEventListener('vrdisplaydeactivate', e => console.log.bind(console));
+            window.addEventListener('vrdisplayblur', e => console.log.bind(console));
+            window.addEventListener('vrdisplayfocus', e => console.log.bind(console));
+            window.addEventListener('vrdisplaypointerrestricted', e => console.log.bind(console));
+            window.addEventListener('vrdisplaypointerunrestricted', e => console.log.bind(console));
+            window.addEventListener('vrdisplaypresentchange', e => console.log.bind(console))
+        }
+    });
+
+    container.appendChild(vr_button);
 
 }
 
 async function setupScene (camera, controllers, player) {
+
+    // Set player view
+    player.add(camera);
 
     // Set camera position
     camera.position.z = 10;
@@ -223,7 +283,7 @@ async function setupScene (camera, controllers, player) {
     const bulletMaterial = new THREE.MeshStandardMaterial({color: 'gray'});
     const bulletPrototype = new THREE.Mesh(bulletGeometry, bulletMaterial);
 
-    return function onFrame (delta, time, globals) {
+    return function () {
         if (controllers.hasOwnProperty("right") && controllers.right !== null) {
 
             const { gamepad, raySpace } = controllers.right;
