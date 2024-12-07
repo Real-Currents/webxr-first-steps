@@ -1,5 +1,5 @@
 import * as THREE from "three";
 
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
-
-export default camera;
+export default function cameraFactory (width, height) {
+    return new THREE.PerspectiveCamera(75, width / height, 0.1, 1000)
+}
