@@ -28,7 +28,9 @@ async function initScene (setup = (camera, controllers, players) => {}) {
     let nativeWebXRSupport = false;
 
     if (navigator.xr) {
-        nativeWebXRSupport = await navigator.xr.isSessionSupported('immersive-vr');
+        nativeWebXRSupport = await
+            // navigator.xr.requestSession('immersive-vr', {requiredFeatures: ['webgpu']});
+            navigator.xr.isSessionSupported('immersive-vr');
     }
 
     // Setup Immersive Web Emulation Runtime (iwer) and emulated XR device (@iwer/devui)
