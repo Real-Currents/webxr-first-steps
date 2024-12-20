@@ -50,13 +50,15 @@ import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFa
 import setupScene from "./setupScene";
 import {annotateScene} from "./annotateScene";
 
+let currentSession;
+
+const scene = new THREE.Scene();
+
 const controllerModelFactory = new XRControllerModelFactory();
 const controllers = {
     left: null,
     right: null,
 };
-
-const scene = new THREE.Scene();
 
 async function initScene (setup = (scene, camera, controllers, players) => {}) {
 
@@ -64,9 +66,8 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
     let nativeWebXRSupport = false;
 
     if (navigator.xr) {
-        nativeWebXRSupport = await
-            // navigator.xr.requestSession('immersive-vr', {requiredFeatures: ['webgpu']});
-            navigator.xr.isSessionSupported('immersive-vr');
+        nativeWebXRSupport = await (navigator.xr.isSessionSupported('immersive-ar')
+            || navigator.xr.isSessionSupported('immersive-vr'));
     }
 
     // Setup Immersive Web Emulation Runtime (iwer) and emulated XR device (@iwer/devui)
@@ -211,11 +212,48 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
         renderer.render(scene, camera);
     });
 
-    const vr_button = VRButton.createButton(renderer);
-    vr_button.className = "vr-button";
-    vr_button.addEventListener('click', async () => {
+    // Note: Added WebXR session handling features
+// From vr-paint example and VRButton.js
+    function startAR() {
+        const sessionInit = {
+            optionalFeatures: [
+                "local-floor",
+                "bounded-floor",
+                "hand-tracking",
+                "layers",
+                "webgpu"
+            ],
+            requiredFeatures: [
+                // "webgpu"
+            ]
+        };
+        navigator.xr
+            .requestSession("immersive-ar", sessionInit)
+            .then(onSessionStarted);
+    }
 
-        console.log("VR Button clicked");
+    async function onSessionStarted(session) {
+        session.addEventListener("end", onSessionEnded);
+        //renderer.xr.setReferenceSpaceType("local");
+        await renderer.xr.setSession(session);
+        currentSession = session;
+    }
+
+    function onSessionEnded() {
+        currentSession.removeEventListener("end", onSessionEnded);
+        currentSession = null;
+    }
+
+    const xr_button = // VRButton.createButton(renderer);
+        document.createElement("button");
+    // xr_button.className = "vr-button";
+    xr_button.className = "xr-button";
+    xr_button.innerHTML = "Enter XR";
+    xr_button.addEventListener('click', async () => {
+
+        console.log("XR Button clicked");
+
+        startAR();
 
         previewWindow.width = window.innerWidth;
         previewWindow.height = window.innerHeight;
@@ -266,7 +304,7 @@ Reload page to reset VR scene.
         }
     });
 
-    container.appendChild(vr_button);
+    container.appendChild(xr_button);
 
 }
 
