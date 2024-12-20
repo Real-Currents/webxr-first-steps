@@ -96,7 +96,7 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
 
     const previewWindow = {
         width: window.innerWidth / 2, // 640,
-        height: window.innerHeight, // 480,
+        height: window.innerHeight + 10, // 480,
     };
 
     const body = document.body,
@@ -184,7 +184,10 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
 
 
     const clock = new THREE.Clock();
-    const updateScene = await setup(scene, camera, controllers, player);
+    const updateScene = await setup(scene, camera, controllers, player, function updateDOMData (data) {
+        const data_pad_data = document.getElementById("data-pad-data");
+        data_pad_data.innerHTML = JSON.stringify(data);
+    });
 
     annotateScene(scene);
 
