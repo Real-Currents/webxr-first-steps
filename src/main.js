@@ -48,6 +48,7 @@ import { VRButton } from "three/addons/webxr/VRButton.js";
 import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory.js";
 
 import setupScene from "./setupScene";
+import {annotateScene} from "./annotateScene";
 
 const controllerModelFactory = new XRControllerModelFactory();
 const controllers = {
@@ -183,7 +184,9 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
 
 
     const clock = new THREE.Clock();
-    const onFrameUpdate = await setup(scene, camera, controllers, player);
+    const updateScene = await setup(scene, camera, controllers, player);
+
+    annotateScene(scene);
 
     renderer.setAnimationLoop(() => {
         const delta = clock.getDelta();
@@ -193,7 +196,8 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
                 controller.gamepad.update();
             }
         });
-        onFrameUpdate();
+        updateScene();
+
         renderer.render(scene, camera);
     });
 

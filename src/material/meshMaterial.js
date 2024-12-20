@@ -3,8 +3,8 @@ import * as THREE from "three";
 //     MeshStandardNodeMaterial,
 // } from "three/webgpu";
 
-const material = new THREE.MeshBasicMaterial({ // new MeshStandardNodeMaterial({
+const meshMaterial = new THREE.MeshBasicMaterial({ // new MeshStandardNodeMaterial({
     color: 0x00FF00
 });
 
-export default material;
+export default meshMaterial;
