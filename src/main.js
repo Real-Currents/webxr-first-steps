@@ -184,12 +184,14 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
 
 
     const clock = new THREE.Clock();
-    const updateScene = await setup(scene, camera, controllers, player, function updateDOMData (data) {
-        const data_pad_data = document.getElementById("data-pad-data");
-        data_pad_data.innerHTML = JSON.stringify(data);
-    });
 
-    annotateScene(scene);
+    const data_pad = document.getElementById("data-pad");
+
+    const data_pad_data = document.getElementById("data-pad-data");
+
+    const updateScene = await setup(scene, camera, controllers, player);
+
+    const updateSceneAnnotations = annotateScene(scene, data_pad, 2048, 2048, '40px');
 
     renderer.setAnimationLoop(() => {
         const delta = clock.getDelta();
@@ -199,7 +201,12 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
                 controller.gamepad.update();
             }
         });
-        updateScene();
+        updateScene(delta, time, function updateDOMData (data) {
+            data_pad_data.innerHTML = JSON.stringify(data);
+            return data_pad_data;
+        });
+
+        updateSceneAnnotations(delta, time, data_pad);
 
         renderer.render(scene, camera);
     });

@@ -5,7 +5,7 @@ import boxGeometry from "./geometry/boxGeometry";
 import {XR_BUTTONS} from "gamepad-wrapper";
 import bulletGeometry from "./geometry/bulletGeometry";
 
-export default async function setupScene (scene, camera, controllers, player, updateDOMData) {
+export default async function setupScene (scene, camera, controllers, player) {
 
     // Set player view
     player.add(camera);
@@ -41,7 +41,7 @@ export default async function setupScene (scene, camera, controllers, player, up
 
     scene.add(rotatingMesh);
 
-    return function () {
+    return function (delta, time, updateDOMData) {
         if (controllers.hasOwnProperty("right") && controllers.right !== null) {
 
             const { gamepad, raySpace } = controllers.right;
