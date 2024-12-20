@@ -1,4 +1,42 @@
 import * as THREE from "three";
+// import {
+//     Clock,
+//     PerspectiveCamera,
+//     Vector2,
+//     Scene,
+//     ACESFilmicToneMapping,
+//     Box2,
+//     MathUtils,
+//     BufferGeometry,
+//     PlaneGeometry,
+//     Mesh,
+//     Vector3,
+//     Color,
+//     EquirectangularReflectionMapping,
+//     BufferAttribute,
+//     BatchedMesh,
+//     Object3D,
+//     Plane,
+//     MeshStandardMaterial,
+//     MeshPhysicalMaterial,
+//     pass,
+//     PostProcessing,
+//     Renderer,
+//     fxaa,
+//     dof,
+//     ao,
+//     uniform,
+//     output,
+//     mrt,
+//     transformedNormalView,
+//     Raycaster,
+//     viewportUV,
+//     clamp,
+//     FloatType,
+//     MeshStandardNodeMaterial,
+//     MeshPhysicalNodeMaterial,
+//     WebGPURenderer
+// } from "three/webgpu";
 
 import { XRDevice, metaQuest3 } from 'iwer';
 import { DevUI } from '@iwer/devui';
@@ -9,10 +47,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { VRButton } from "three/addons/webxr/VRButton.js";
 import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory.js";
 
-import boxGeometry from "./geometry/boxGeometry";
-import bulletGeometry from "./geometry/bulletGeometry";
-import planeGeometry from "./geometry/planeGeometry";
-import material from "./material";
+import setupScene from "./setupScene";
 
 const controllerModelFactory = new XRControllerModelFactory();
 const controllers = {
@@ -22,7 +57,7 @@ const controllers = {
 
 const scene = new THREE.Scene();
 
-async function initScene (setup = (camera, controllers, players) => {}) {
+async function initScene (setup = (scene, camera, controllers, players) => {}) {
 
     // iwer setup
     let nativeWebXRSupport = false;
@@ -70,7 +105,11 @@ async function initScene (setup = (camera, controllers, players) => {}) {
 
     console.log(container);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const canvas= // window.document.querySelector('canvas') ||
+        window.document.createElement('canvas');
+
+    // const renderer = new WebGPURenderer({ canvas: canvas, antialias: true });
+    const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     // renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setSize(previewWindow.width, previewWindow.height);
@@ -144,7 +183,7 @@ async function initScene (setup = (camera, controllers, players) => {}) {
 
 
     const clock = new THREE.Clock();
-    const onFrameUpdate = await setup(camera, controllers, player);
+    const onFrameUpdate = await setup(scene, camera, controllers, player);
 
     renderer.setAnimationLoop(() => {
         const delta = clock.getDelta();
@@ -215,71 +254,6 @@ Reload page to reset VR scene.
 
     container.appendChild(vr_button);
 
-}
-
-async function setupScene (camera, controllers, player) {
-
-    // Set player view
-    player.add(camera);
-
-    // Set camera position
-    camera.position.z = 10;
-    camera.position.y = 1;
-
-    // Floor
-    const floor = new THREE.Mesh(planeGeometry, material);
-
-    floor.rotateX(-Math.PI / 2);
-
-    scene.add(floor);
-
-    // Rotating Cube
-    const rotatingMesh = (controllers.left === null) ?
-        new THREE.Mesh(boxGeometry, material) :
-        // ... or Controller mesh
-        controllerModelFactory.createControllerModel(controllers.left.gripSpace);
-
-    rotatingMesh.position.y = 2;
-
-    rotatingMesh.rotX = function (x) {
-        // console.log(this);
-        this.rotation.x += x;
-    }
-
-    rotatingMesh.rotY = function (y) {
-        // console.log(this);
-        this.rotation.y += y;
-    }
-
-    scene.add(rotatingMesh);
-
-    return function () {
-        if (controllers.hasOwnProperty("right") && controllers.right !== null) {
-
-            const { gamepad, raySpace } = controllers.right;
-
-            // Power Ball
-            if (gamepad.getButtonClick(XR_BUTTONS.TRIGGER)) {
-                console.log("Trigger on right controller was activated:", XR_BUTTONS.TRIGGER, gamepad);
-                const bullet = new THREE.Mesh(bulletGeometry, material);
-                scene.add(bullet);
-                raySpace.getWorldPosition(bullet.position);
-                raySpace.getWorldQuaternion(bullet.quaternion);
-            } else {
-                for (const b in XR_BUTTONS) {
-                    if (XR_BUTTONS.hasOwnProperty(b)) {
-                        // console.log("Check button: ", XR_BUTTONS[b]);
-                        if (gamepad.getButtonClick(XR_BUTTONS[b])) {
-                            console.log("Button on right controller was activated:", XR_BUTTONS[b], gamepad);
-                        }
-                    }
-                }
-            }
-        }
-
-        rotatingMesh.rotX(0.01);
-        rotatingMesh.rotY(0.01);
-    }
 }
 
 initScene(setupScene);
