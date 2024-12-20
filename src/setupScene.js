@@ -5,14 +5,16 @@ import boxGeometry from "./geometry/boxGeometry";
 import {XR_BUTTONS} from "gamepad-wrapper";
 import bulletGeometry from "./geometry/bulletGeometry";
 
+let waiting_for_confirmation = false;
+
 export default async function setupScene (scene, camera, controllers, player) {
 
     // Set player view
     player.add(camera);
 
-    // Set camera position
-    camera.position.z = 10;
-    camera.position.y = 1;
+    // // Set camera position
+    // camera.position.z = 10;
+    // camera.position.y = 1;
 
     // Floor
     const floor = new THREE.Mesh(planeGeometry, meshMaterial);
@@ -41,7 +43,7 @@ export default async function setupScene (scene, camera, controllers, player) {
 
     scene.add(rotatingMesh);
 
-    return function (delta, time, updateDOMData) {
+    return function (currentSession, delta, time, updateDOMData) {
         if (controllers.hasOwnProperty("right") && controllers.right !== null) {
 
             const { gamepad, raySpace } = controllers.right;
@@ -60,7 +62,42 @@ export default async function setupScene (scene, camera, controllers, player) {
                 if (typeof updateDOMData === "function") {
                     updateDOMData({
                         position: bullet.position,
-                        quaternion: bullet.quaternion
+                        quaternion: bullet.quaternion,
+                        waiting_for_confirmation: waiting_for_confirmation
+                    });
+                }
+
+            } else if (gamepad.getButtonClick(XR_BUTTONS.BUTTON_1)) {
+                console.log("BUTTON_2 (A) on right controller was activated:", XR_BUTTONS.BUTTON_2, gamepad);
+                if (!!waiting_for_confirmation) {
+                    console.log("Confirm action");
+                    waiting_for_confirmation = false;
+                    console.log("End session");
+                    if (typeof updateDOMData === "function") {
+                        updateDOMData({
+                            action: "End session confirmed",
+                            waiting_for_confirmation: waiting_for_confirmation
+                        });
+                    }
+                    currentSession.end();
+                }
+
+            } else if (gamepad.getButtonClick(XR_BUTTONS.BUTTON_2)) {
+                console.log("BUTTON_2 (B) on right controller was activated:", XR_BUTTONS.BUTTON_2, gamepad);
+
+                if (!!waiting_for_confirmation) {
+                    console.log("Cancel action");
+                    waiting_for_confirmation = false;
+                    updateDOMData({
+                        action: "End session cancelled",
+                        waiting_for_confirmation: waiting_for_confirmation
+                    });
+                } else {
+                    console.log("Waiting for confirmation...")
+                    waiting_for_confirmation = true;
+                    updateDOMData({
+                        action: "End session initiated",
+                        waiting_for_confirmation: waiting_for_confirmation
                     });
                 }
 

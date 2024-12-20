@@ -28,6 +28,7 @@ export function annotateScene (scene, div, screenWidth, screenHeight, fontSize) 
 
     function drawRandomDot() {
         ctx.strokeStyle = `#${randInt(0x1000000).toString(16).padStart(6, '0')}`;
+        ctx.fillStyle = `#${randInt(0x1000000).toString(16).padStart(6, '0')}`;
         ctx.beginPath();
 
         const x = randInt(screenWidth);
@@ -35,6 +36,7 @@ export function annotateScene (scene, div, screenWidth, screenHeight, fontSize) 
         const radius = randInt(10, 64);
         ctx.arc(x, y, radius, 0, Math.PI * 2);
         ctx.stroke();
+        ctx.fill();
     }
 
     const DOMURL = window.URL || window.webkitURL || window;
@@ -50,6 +52,32 @@ export function annotateScene (scene, div, screenWidth, screenHeight, fontSize) 
     img.src = url.pop();
 
     const texture = new THREE.CanvasTexture(ctx.canvas);
+
+    function render() {
+        if (url.length <= 1) {
+
+            const data   = `
+<svg xmlns="http://www.w3.org/2000/svg" width="${(screenHeight/2)}" height="${(screenWidth/2)}">
+    <foreignObject width="100%" height="100%">
+        <div xmlns="http://www.w3.org/1999/xhtml">
+            ${div.innerHTML
+                .replace("border-radius: 0px", "border-radius: 20px")
+                .replace("red", "rgba(255, 63, 127, 0.05)")}
+        </div>
+    </foreignObject>
+</svg>
+`;
+            const svg = new Blob([data], {type: 'image/svg+xml;charset=utf-8'});
+            url.push(DOMURL.createObjectURL(svg));
+            img.src = url[(url.length - 1)];
+        }
+
+        drawRandomDot();
+
+        ctx.font = `${fontSize} Comfortaa`;
+        ctx.strokeStyle = "white";
+        ctx.strokeText(div.textContent, 100, (screenWidth - 100));
+    }
 
     // screen
     const screen = new THREE.Mesh(planeGeometry, new THREE.MeshBasicMaterial({
@@ -102,32 +130,12 @@ export function annotateScene (scene, div, screenWidth, screenHeight, fontSize) 
         scene.add(text);
     } );
 
-    return function (delta, time, div) {
-        requestAnimationFrame(function render() {
-            drawRandomDot();
+    for (let i = 0; i < 1000; i++) {
+        render();
+    }
 
-            if (url.length <= 1) {
-
-                const data   = `
-<svg xmlns="http://www.w3.org/2000/svg" width="${(screenHeight/2)}" height="${(screenWidth/2)}">
-    <foreignObject width="100%" height="100%">
-        <div xmlns="http://www.w3.org/1999/xhtml">
-            ${div.innerHTML
-                .replace("border-radius: 0px", "border-radius: 20px")
-                .replace("red", "rgba(255, 63, 127, 0.05)")}
-        </div>
-    </foreignObject>
-</svg>
-`;
-                const svg = new Blob([data], {type: 'image/svg+xml;charset=utf-8'});
-                url.push(DOMURL.createObjectURL(svg));
-                img.src = url[(url.length - 1)];
-            }
-
-            ctx.font = `${fontSize} Comfortaa`;
-            ctx.strokeStyle = "white";
-            ctx.strokeText(div.textContent, 100, (screenWidth - 100));
-        });
+    return function (currentSession, delta, time, div) {
+        requestAnimationFrame(render);
         texture.needsUpdate = true;
     }
 }

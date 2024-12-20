@@ -202,12 +202,12 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
                 controller.gamepad.update();
             }
         });
-        updateScene(delta, time, function updateDOMData (data) {
-            data_pad_data.innerHTML = JSON.stringify(data) + data_pad_data.innerHTML;
+        updateScene(currentSession, delta, time, function updateDOMData (data) {
+            data_pad_data.innerHTML = data_pad_data.innerHTML + "<br />" + JSON.stringify(data);
             return data_pad_data;
         });
 
-        updateSceneAnnotations(delta, time, data_pad);
+        updateSceneAnnotations(currentSession, delta, time, data_pad);
 
         renderer.render(scene, camera);
     });
