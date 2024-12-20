@@ -8,6 +8,7 @@ import meshMaterial from "./material/meshMaterial";
 
 const fontLoader = new FontLoader();
 const textureLoader = new THREE.TextureLoader();
+const url = [ "" ];
 
 export function annotateScene (scene, div, screenWidth, screenHeight, fontSize) {
 
@@ -16,8 +17,6 @@ export function annotateScene (scene, div, screenWidth, screenHeight, fontSize) 
     ctx.canvas.height = screenHeight;
     ctx.fillStyle = 'transparent';
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-
-    console.log(div.textContent)
 
     function randInt(min, max) {
         if (max === undefined) {
@@ -28,7 +27,6 @@ export function annotateScene (scene, div, screenWidth, screenHeight, fontSize) 
     }
 
     function drawRandomDot() {
-        ctx.globalAlpha = 1.0;
         ctx.strokeStyle = `#${randInt(0x1000000).toString(16).padStart(6, '0')}`;
         ctx.beginPath();
 
@@ -42,14 +40,14 @@ export function annotateScene (scene, div, screenWidth, screenHeight, fontSize) 
     const DOMURL = window.URL || window.webkitURL || window;
 
     const img = new Image();
-    let url = "";
 
     img.onload = function () {
+        // console.log(url);
         ctx.drawImage(img, 0, 0, screenWidth, screenHeight);
-        DOMURL.revokeObjectURL(url);
+        DOMURL.revokeObjectURL(url.pop());
     }
 
-    img.src = url;
+    img.src = url.pop();
 
     const texture = new THREE.CanvasTexture(ctx.canvas);
 
@@ -106,20 +104,25 @@ export function annotateScene (scene, div, screenWidth, screenHeight, fontSize) 
 
     return function (delta, time, div) {
         requestAnimationFrame(function render() {
-            // drawRandomDot();
+            drawRandomDot();
 
-            const data   = `
+            if (url.length <= 1) {
+
+                const data   = `
 <svg xmlns="http://www.w3.org/2000/svg" width="${(screenHeight/2)}" height="${(screenWidth/2)}">
     <foreignObject width="100%" height="100%">
         <div xmlns="http://www.w3.org/1999/xhtml">
-            ${div.innerHTML.replace("red", "rgba(255, 63, 127, 0.05)")}
+            ${div.innerHTML
+                .replace("border-radius: 0px", "border-radius: 20px")
+                .replace("red", "rgba(255, 63, 127, 0.05)")}
         </div>
     </foreignObject>
 </svg>
 `;
-            const svg = new Blob([data], {type: 'image/svg+xml;charset=utf-8'});
-            url = DOMURL.createObjectURL(svg);
-            img.src = url;
+                const svg = new Blob([data], {type: 'image/svg+xml;charset=utf-8'});
+                url.push(DOMURL.createObjectURL(svg));
+                img.src = url[(url.length - 1)];
+            }
 
             ctx.font = `${fontSize} Comfortaa`;
             ctx.strokeStyle = "white";

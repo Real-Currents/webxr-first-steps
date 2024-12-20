@@ -191,7 +191,7 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
 
     const updateScene = await setup(scene, camera, controllers, player);
 
-    const updateSceneAnnotations = annotateScene(scene, data_pad, 2048, 2048, '40px');
+    const updateSceneAnnotations = annotateScene(scene, data_pad, 2048, 2048, "40px");
 
     renderer.setAnimationLoop(() => {
         const delta = clock.getDelta();
@@ -202,7 +202,7 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
             }
         });
         updateScene(delta, time, function updateDOMData (data) {
-            data_pad_data.innerHTML = JSON.stringify(data);
+            data_pad_data.innerHTML = JSON.stringify(data) + data_pad_data.innerHTML;
             return data_pad_data;
         });
 
