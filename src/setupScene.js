@@ -1,25 +1,25 @@
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+
 import planeGeometry from "./geometry/planeGeometry";
 import meshMaterial from "./material/meshMaterial";
 import boxGeometry from "./geometry/boxGeometry";
 import {XR_BUTTONS} from "gamepad-wrapper";
 import bulletGeometry from "./geometry/bulletGeometry";
 
-let waiting_for_confirmation = false;
-
-const forwardVector = new THREE.Vector3(0, 0, -1);
 const bulletSpeed = 3;
 const bulletTimeToLive = 1;
 const bullets = {};
+const forwardVector = new THREE.Vector3(0, 0, -1);
+
+const loader = new GLTFLoader();
+
+let waiting_for_confirmation = false;
 
 export default async function setupScene (scene, camera, controllers, player) {
 
     // Set player view
     player.add(camera);
-
-    // // Set camera position
-    // camera.position.z = 10;
-    // camera.position.y = 1;
 
     // Floor
     const floor = new THREE.Mesh(planeGeometry, meshMaterial);
@@ -47,6 +47,12 @@ export default async function setupScene (scene, camera, controllers, player) {
     }
 
     scene.add(rotatingMesh);
+
+    loader.load("assets/spacestation.glb", (gltf_file) => {
+        const space_station_scene = gltf_file.scene;
+        space_station_scene.position.z += -1;
+        scene.add(gltf_file.scene);
+    });
 
     return function (currentSession, delta, time, updateDOMData) {
         if (controllers.hasOwnProperty("right") && controllers.right !== null) {

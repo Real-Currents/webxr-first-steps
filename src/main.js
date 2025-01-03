@@ -127,7 +127,7 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
         50,
         previewWindow.width / previewWindow.height,
         0.1,
-        100,
+        1000,
     );
     camera.position.set(0, 1.6, 3);
 
@@ -272,8 +272,9 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
         camera.aspect = previewWindow.width / previewWindow.height;
         camera.updateProjectionMatrix();
 
-        player.position.z = camera.position.z;
-        player.position.y = camera.position.y;
+        // Set camera position
+        camera.position.z = 5;
+        camera.position.y = 0;
 
         renderer.render(scene, camera);
 
