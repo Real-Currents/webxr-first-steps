@@ -7,6 +7,12 @@ import boxGeometry from "./geometry/boxGeometry";
 import {XR_BUTTONS} from "gamepad-wrapper";
 import bulletGeometry from "./geometry/bulletGeometry";
 
+import defaultVertexShader from './shaders/default/vertexShader.glsl';
+import defaultFragmentShader from './shaders/default/fragmentShader.glsl';
+
+import wavesVertexShader from './shaders/waves/vertexShader.glsl';
+
+
 const bulletSpeed = 3;
 const bulletTimeToLive = 1;
 const bullets = {};
@@ -16,15 +22,44 @@ const loader = new GLTFLoader();
 
 let waiting_for_confirmation = false;
 
+const SIZE = 4;
+const RESOLUTION = 512;
+
 export default async function setupScene (scene, camera, controllers, player) {
 
     // Set player view
     player.add(camera);
 
-    // Floor
-    const floor = new THREE.Mesh(planeGeometry, meshMaterial);
+    const uniforms = {
+        ...THREE.ShaderLib.physical.uniforms,
+        // diffuse: { value: "#5B82A6" }, // <= DO NO USE WITH THREE.ShaderChunk.meshphysical_frag ...
+        diffuse: { value: { "r": 0.36, "g": 0.51, "b": 0.65 } },
+        roughness: { value: 0.5 },
+        amplitude: { value: 0.25},
+        frequency: { value: 0.5 },
+        speed: { value: 0.3 },
+        time: { value: 1.0 }
+    };
 
-    floor.rotateX(-Math.PI / 2);
+    const geometry = new THREE.PlaneGeometry(SIZE, SIZE, RESOLUTION, RESOLUTION).rotateX(-Math.PI / 2);
+
+    const material = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: wavesVertexShader,
+        fragmentShader: defaultFragmentShader,
+        lights: true,
+        side: THREE.DoubleSide,
+        defines: {
+            STANDARD: '',
+            PHYSICAL: '',
+        },
+        extensions: {
+            derivatives: true,
+        },
+    });
+
+    // Wavy Floor
+    const floor = new THREE.Mesh(geometry, material);
 
     scene.add(floor);
 
@@ -141,6 +176,22 @@ export default async function setupScene (scene, camera, controllers, player) {
                 }
             }
         }
+
+        // update the time uniform
+        floor.material.uniforms.time.value = time;
+
+        const hidden_box_face = meshMaterial.clone();
+        hidden_box_face.opacity = 0.0;
+        hidden_box_face.transparent = true;
+
+        rotatingMesh.material = [
+            material,
+            material,
+            material,
+            material,
+            material,
+            hidden_box_face,
+        ];
 
         rotatingMesh.rotX(0.01);
         rotatingMesh.rotY(0.01);

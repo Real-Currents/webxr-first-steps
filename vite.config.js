@@ -2,6 +2,7 @@ import { NodeGlobalsPolyfillPlugin } from "@esbuild-plugins/node-globals-polyfil
 import { NodeModulesPolyfillPlugin } from "@esbuild-plugins/node-modules-polyfill";
 import basicSsl from "@vitejs/plugin-basic-ssl";
 // import mkcert from 'vite-plugin-mkcert'
+import shader from 'rollup-plugin-shader';
 
 export default {
     define: {
@@ -43,5 +44,16 @@ export default {
             // certDir: '/Users/.../.devServer/cert'
         }),
         // mkcert()
+        shader({
+            // All match files will be parsed by default,
+            // but you can also specifically include/exclude files
+            include: [
+                '**/*.glsl',
+                '**/*.vs',
+                '**/*.fs'
+            ],
+            // specify whether to remove comments
+            removeComments: true,   // default: true
+        }),
     ]
 };
