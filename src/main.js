@@ -47,6 +47,8 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { VRButton } from "three/addons/webxr/VRButton.js";
 import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory.js";
 
+import Stats from "https://unpkg.com/three@0.118.3/examples/jsm/libs/stats.module.js";
+
 import setupScene from "./setupScene";
 import {annotateScene} from "./annotateScene";
 
@@ -105,7 +107,9 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
     container.style = `display: block; background-color: #000; max-width: ${previewWindow.width}px; max-height: ${previewWindow.height}px; overflow: hidden;`;
     body.appendChild(container);
 
-    console.log(container);
+    const stats = new Stats();
+    stats.showPanel(0);
+    container.appendChild(stats.dom);
 
     const canvas= // window.document.querySelector('canvas') ||
         window.document.createElement('canvas');
@@ -192,7 +196,7 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
 
     const updateScene = await setup(scene, camera, controllers, player);
 
-    const updateSceneAnnotations = annotateScene(scene, data_pad, 2048, 2048, "40px");
+    // const updateSceneAnnotations = annotateScene(scene, data_pad, 2048, 2048, "40px");
 
     renderer.setAnimationLoop(() => {
         const delta = clock.getDelta();
@@ -202,14 +206,19 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
                 controller.gamepad.update();
             }
         });
+
+        stats.begin();
+
         updateScene(currentSession, delta, time, function updateDOMData (data) {
-            data_pad_data.innerHTML = data_pad_data.innerHTML + "<br />" + JSON.stringify(data);
+            data_pad_data.innerHTML = data_pad_data.innerHTML + "<br />" + JSON.stringify(data, null, 4);
             return data_pad_data;
         });
 
-        updateSceneAnnotations(currentSession, delta, time, data_pad);
+        // updateSceneAnnotations(currentSession, delta, time, data_pad);
 
         renderer.render(scene, camera);
+
+        stats.end();
     });
 
     // Note: Added WebXR session handling features

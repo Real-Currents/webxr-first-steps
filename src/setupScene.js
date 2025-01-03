@@ -7,6 +7,11 @@ import bulletGeometry from "./geometry/bulletGeometry";
 
 let waiting_for_confirmation = false;
 
+const forwardVector = new THREE.Vector3(0, 0, -1);
+const bulletSpeed = 3;
+const bulletTimeToLive = 1;
+const bullets = {};
+
 export default async function setupScene (scene, camera, controllers, player) {
 
     // Set player view
@@ -59,8 +64,22 @@ export default async function setupScene (scene, camera, controllers, player) {
                 raySpace.getWorldPosition(bullet.position);
                 raySpace.getWorldQuaternion(bullet.quaternion);
 
+                const directionVector = new THREE.Vector3(0, 0, -1) // forwardVector
+                    .clone()
+                    .applyQuaternion(bullet.quaternion);
+
+                bullet.userData = {
+                    velocity: directionVector.multiplyScalar(bulletSpeed),
+                    timeToLive: bulletTimeToLive
+                };
+
+                bullets[bullet.uuid] = bullet;
+
+                console.log("bullets:", bullets);
+
                 if (typeof updateDOMData === "function") {
                     updateDOMData({
+                        action: "Shoot",
                         position: bullet.position,
                         quaternion: bullet.quaternion,
                         waiting_for_confirmation: waiting_for_confirmation
@@ -88,17 +107,21 @@ export default async function setupScene (scene, camera, controllers, player) {
                 if (!!waiting_for_confirmation) {
                     console.log("Cancel action");
                     waiting_for_confirmation = false;
-                    updateDOMData({
-                        action: "End session cancelled",
-                        waiting_for_confirmation: waiting_for_confirmation
-                    });
+                    if (typeof updateDOMData === "function") {
+                        updateDOMData({
+                            action: "End session cancelled",
+                            waiting_for_confirmation: waiting_for_confirmation
+                        });
+                    }
                 } else {
                     console.log("Waiting for confirmation...")
                     waiting_for_confirmation = true;
-                    updateDOMData({
-                        action: "End session initiated",
-                        waiting_for_confirmation: waiting_for_confirmation
-                    });
+                    if (typeof updateDOMData === "function") {
+                        updateDOMData({
+                            action: "End session initiated",
+                            waiting_for_confirmation: waiting_for_confirmation
+                        });
+                    }
                 }
 
             } else {
@@ -115,5 +138,19 @@ export default async function setupScene (scene, camera, controllers, player) {
 
         rotatingMesh.rotX(0.01);
         rotatingMesh.rotY(0.01);
+
+        if (Object.values(bullets) !== null && Object.values(bullets).length > 0) {
+            console.log("Update bullets")
+            Object.values(bullets).forEach((bullet) => {
+                if (bullet.userData.timeToLive < 0) {
+                    scene.remove(bullet);
+                    delete bullets[bullet.uuid];
+                } else {
+                    const deltaVelocity = bullet.userData.velocity.clone().multiplyScalar(delta);
+                    bullet.position.add(deltaVelocity);
+                    bullet.userData.timeToLive -= delta;
+                }
+            });
+        }
     }
 }
