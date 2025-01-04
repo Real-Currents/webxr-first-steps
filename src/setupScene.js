@@ -11,6 +11,7 @@ import defaultVertexShader from './shaders/default/vertexShader.glsl';
 import defaultFragmentShader from './shaders/default/fragmentShader.glsl';
 
 import wavesVertexShader from './shaders/waves/vertexShader.glsl';
+import {Text} from "troika-three-text";
 
 
 const bulletSpeed = 3;
@@ -61,8 +62,6 @@ export default async function setupScene (scene, camera, controllers, player) {
     // Wavy Floor
     const floor = new THREE.Mesh(geometry, material);
 
-    scene.add(floor);
-
     // Rotating Cube
     const rotatingMesh = (controllers.left === null) ?
         new THREE.Mesh(boxGeometry, meshMaterial) :
@@ -81,21 +80,47 @@ export default async function setupScene (scene, camera, controllers, player) {
         this.rotation.y += y;
     }
 
-    scene.add(rotatingMesh);
+    const scoreText = new Text();
+    scoreText.fontSize = 0.52;
+    scoreText.font = "fonts/SpaceMono-Bold.ttf";
+    scoreText.position.z = -2;
+    scoreText.color = 0xffa276;
+    scoreText.anchorX = 'center';
+    scoreText.anchorY = 'middle';
 
-    // Faces of rotatingMesh (cube)
-    const faces = getFaces(rotatingMesh);
-    faces.forEach((face) => {
-        console.log("Face:", face);
-    });
+    function updateScoreDisplay (new_score) {
+        const clampedScore = Math.max(0, Math.min(9999, new_score));
+        const displayScore = clampedScore.toString().padStart(4, '0');
+        scoreText.text = displayScore;
+        scoreText.sync();
+    }
 
     loader.load("assets/spacestation.glb", (gltf_file) => {
+        const scene_posistion = { x: 0, y: 0, z: -1 };
+
         const space_station_scene = gltf_file.scene;
-        space_station_scene.position.z += -1;
+        space_station_scene.position.x += scene_posistion.x;
+        space_station_scene.position.y += scene_posistion.y;
+        space_station_scene.position.z += scene_posistion.z;
         scene.add(gltf_file.scene);
+
+        // Add the score text to the scene
+        scene.add(scoreText);
+        scoreText.position.set(0 + scene_posistion.x, 0.67 + scene_posistion.y, -1.44 + scene_posistion.z);
+        scoreText.rotateX(-Math.PI / 3.3);
+
+        scene.add(floor);
+
+        scene.add(rotatingMesh);
+
+        // Faces of rotatingMesh (cube)
+        const faces = getFaces(rotatingMesh);
+        faces.forEach((face) => {
+            console.log("Face:", face);
+        });
     });
 
-    return function (currentSession, delta, time, updateDOMData) {
+    return function (currentSession, delta, time, text, updateDOMData) {
         if (controllers.hasOwnProperty("right") && controllers.right !== null) {
 
             const { gamepad, raySpace } = controllers.right;
@@ -215,6 +240,11 @@ export default async function setupScene (scene, camera, controllers, player) {
                 }
             });
         }
+
+        const score = text.toString().match(/(\d+)$/)[0]
+
+        updateScoreDisplay(score);
+
     }
 }
 

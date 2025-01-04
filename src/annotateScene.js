@@ -11,21 +11,6 @@ const fontLoader = new FontLoader();
 const textureLoader = new THREE.TextureLoader();
 const base64_url = [ "" ];
 
-const scoreText = new Text();
-scoreText.fontSize = 0.52;
-scoreText.font = 'assets/SpaceMono-Bold.ttf';
-scoreText.position.z = -2;
-scoreText.color = 0xffa276;
-scoreText.anchorX = 'center';
-scoreText.anchorY = 'middle';
-
-export function updateScoreDisplay (score) {
-    const clampedScore = Math.max(0, Math.min(9999, score));
-    const displayScore = clampedScore.toString().padStart(4, '0');
-    scoreText.text = displayScore;
-    scoreText.sync();
-}
-
 export function annotateScene (scene, div, screenWidth, screenHeight, fontSize, position) {
 
     const ctx = document.createElement('canvas').getContext('2d');
@@ -36,16 +21,18 @@ export function annotateScene (scene, div, screenWidth, screenHeight, fontSize, 
 
     ctx.canvas.width = screenWidth;
     ctx.canvas.height = screenHeight;
-    ctx.fillStyle = 'transparent';
+    ctx.fillStyle = "transparent";
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-    img.onload = function () {
-        // console.log(base64_url);
-        ctx.drawImage(img, 0, 0, screenWidth, screenHeight);
-        DOMURL.revokeObjectURL(base64_url.pop());
-    }
-
-    img.src = base64_url.pop();
+    // img.onload = function () {
+    //     // console.log(base64_url);
+    //     ctx.fillStyle = "grey";
+    //     ctx.fillRect(0, 0, screenWidth, screenHeight/4 + 100);
+    //     ctx.drawImage(img, 0, 0, screenWidth, screenHeight); // <= Reduces framerate by > 30% !
+    //     DOMURL.revokeObjectURL(base64_url.pop());
+    // }
+    //
+    // img.src = base64_url.pop();
 
     function randInt(min, max) {
         if (max === undefined) {
@@ -72,7 +59,7 @@ export function annotateScene (scene, div, screenWidth, screenHeight, fontSize, 
         drawRandomDot();
     }
 
-    function renderScreen() {
+    function renderScreen(text) {
 
         drawRandomDot();
 
@@ -91,12 +78,16 @@ export function annotateScene (scene, div, screenWidth, screenHeight, fontSize, 
                 `;
             const svg = new Blob([data], {type: 'image/svg+xml;charset=utf-8'});
             base64_url.push(DOMURL.createObjectURL(svg));
-            img.src = base64_url[(base64_url.length - 1)];
+            if (!!img && img.hasOwnProperty("src")) {
+                img.src = base64_url[(base64_url.length - 1)];
+            }
         }
 
         ctx.font = `${fontSize} Comfortaa`;
+        ctx.fillStyle = "grey";
+        ctx.fillRect(0, screenHeight/2 - 100, screenWidth, 200);
         ctx.fillStyle = "white";
-        ctx.fillText(div.textContent, 10, screenHeight/2);
+        ctx.fillText(text, 10, screenHeight/2);
     }
 
     // Create screen
@@ -121,17 +112,17 @@ export function annotateScene (scene, div, screenWidth, screenHeight, fontSize, 
 
     const line = new THREE.Line(geometry, lineMaterial);
 
+    scene.add(line);
+
+    scene.add(screen);
+
+    texture.needsUpdate = true; // <= DANGEROUS when used with canvas (2d)!
+
     fontLoader.load( 'fonts/comfortaa-regular.json', function ( font ) {
 
         console.log("FontLoader loaded: ", font);
 
-        texture.needsUpdate = true; // <= DANGEROUS when used with canvas (2d)!
-
-        scene.add(line);
-
-        scene.add(screen);
-
-        const text = new THREE.Line(new TextGeometry(
+        const textMesh = new THREE.Line(new TextGeometry(
             'Hello three.js!', {
                 font: font,
                 size: 0.5,
@@ -144,15 +135,19 @@ export function annotateScene (scene, div, screenWidth, screenHeight, fontSize, 
                 bevelSegments: 0.5
             }), lineMaterial);
 
-        text.position.x = -2.5 + x;
-        text.position.y = 5 + y;
-        text.position.z = 0 + z;
+        textMesh.position.x = -2.5 + x;
+        textMesh.position.y = 5 + y;
+        textMesh.position.z = 0 + z;
 
-        scene.add(text);
-    } );
+        scene.add(textMesh);
+    });
 
-    return function (currentSession, delta, time, div) {
+    return function (currentSession, delta, time, div, text) {
         // requestAnimationFrame(render);
-        renderScreen();
+        if (!!text) {
+            renderScreen(text);
+        } else {
+            renderScreen(div.textContent);
+        }
     }
 }

@@ -176,12 +176,22 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
 
         stats.begin();
 
-        updateScene(currentSession, delta, time, function updateDOMData (data) {
-            data_pad_data.innerHTML = data_pad_data.innerHTML + "<br />" + JSON.stringify(data, null, 4);
-            return data_pad_data;
-        });
+        updateScene(
+            currentSession,
+            delta,
+            time,
+            score,
+            function updateDOMData (data) {
+                data_pad_data.innerHTML = data_pad_data.innerHTML + "<br />" + JSON.stringify(data, null, 4);
+                return data_pad_data;
+            }
+        );
 
-        updateSceneAnnotations(currentSession, delta, time, data_pad);
+        if (score > 0) {
+            updateSceneAnnotations(currentSession, delta, time, data_pad, "Your new score is " + score);
+        } else {
+            updateSceneAnnotations(currentSession, delta, time, data_pad);
+        }
 
         renderer.render(scene, camera);
 
@@ -189,7 +199,7 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
     });
 
     // Note: Added WebXR session handling features
-// From vr-paint example and VRButton.js
+    // From vr-paint example and VRButton.js
     function startAR() {
         const sessionInit = {
             optionalFeatures: [
