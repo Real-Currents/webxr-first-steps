@@ -1,42 +1,4 @@
 import * as THREE from "three";
-// import {
-//     Clock,
-//     PerspectiveCamera,
-//     Vector2,
-//     Scene,
-//     ACESFilmicToneMapping,
-//     Box2,
-//     MathUtils,
-//     BufferGeometry,
-//     PlaneGeometry,
-//     Mesh,
-//     Vector3,
-//     Color,
-//     EquirectangularReflectionMapping,
-//     BufferAttribute,
-//     BatchedMesh,
-//     Object3D,
-//     Plane,
-//     MeshStandardMaterial,
-//     MeshPhysicalMaterial,
-//     pass,
-//     PostProcessing,
-//     Renderer,
-//     fxaa,
-//     dof,
-//     ao,
-//     uniform,
-//     output,
-//     mrt,
-//     transformedNormalView,
-//     Raycaster,
-//     viewportUV,
-//     clamp,
-//     FloatType,
-//     MeshStandardNodeMaterial,
-//     MeshPhysicalNodeMaterial,
-//     WebGPURenderer
-// } from "three/webgpu";
 
 import { XRDevice, metaQuest3 } from 'iwer';
 import { DevUI } from '@iwer/devui';
@@ -44,15 +6,17 @@ import { gsap } from 'gsap';
 import { GamepadWrapper, XR_BUTTONS } from 'gamepad-wrapper';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { VRButton } from "three/addons/webxr/VRButton.js";
+// import { VRButton } from "three/addons/webxr/VRButton.js";
 import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory.js";
 
 import Stats from "https://unpkg.com/three@0.118.3/examples/jsm/libs/stats.module.js";
 
 import setupScene from "./setupScene";
-import {annotateScene} from "./annotateScene";
+import { annotateScene } from "./annotateScene";
 
 let currentSession;
+
+let score = 0;
 
 const scene = new THREE.Scene();
 
@@ -196,7 +160,10 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
 
     const updateScene = await setup(scene, camera, controllers, player);
 
-    // const updateSceneAnnotations = annotateScene(scene, data_pad, 2048, 2048, "40px");
+    const updateSceneAnnotations = annotateScene(
+        scene, data_pad, 2048, 2048,
+        "48px", { x: 0, y: 3, z: -5 }
+    );
 
     renderer.setAnimationLoop(() => {
         const delta = clock.getDelta();
@@ -214,7 +181,7 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
             return data_pad_data;
         });
 
-        // updateSceneAnnotations(currentSession, delta, time, data_pad);
+        updateSceneAnnotations(currentSession, delta, time, data_pad);
 
         renderer.render(scene, camera);
 
