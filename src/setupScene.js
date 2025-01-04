@@ -62,20 +62,24 @@ export default async function setupScene (scene, camera, controllers, player) {
     // Wavy Floor
     const floor = new THREE.Mesh(geometry, material);
 
+    const rotatingTargetGroup = new THREE.Group();
+
     // Rotating Cube
     const rotatingMesh = (controllers.left === null) ?
         new THREE.Mesh(boxGeometry, meshMaterial) :
         // ... or Controller mesh
         controllerModelFactory.createControllerModel(controllers.left.gripSpace);
 
-    rotatingMesh.position.y = 2;
+    rotatingTargetGroup.add(rotatingMesh);
 
-    rotatingMesh.rotX = function (x) {
+    rotatingTargetGroup.position.y = 2;
+
+    rotatingTargetGroup.rotX = function (x) {
         // console.log(this);
         this.rotation.x += x;
     }
 
-    rotatingMesh.rotY = function (y) {
+    rotatingTargetGroup.rotY = function (y) {
         // console.log(this);
         this.rotation.y += y;
     }
@@ -111,7 +115,7 @@ export default async function setupScene (scene, camera, controllers, player) {
 
         scene.add(floor);
 
-        scene.add(rotatingMesh);
+        scene.add(rotatingTargetGroup);
 
         // Faces of rotatingMesh (cube)
         const faces = getFaces(rotatingMesh);
@@ -224,8 +228,8 @@ export default async function setupScene (scene, camera, controllers, player) {
             material,
         ];
 
-        rotatingMesh.rotX(0.01);
-        rotatingMesh.rotY(0.01);
+        rotatingTargetGroup.rotX(0.01);
+        rotatingTargetGroup.rotY(0.01);
 
         if (Object.values(bullets) !== null && Object.values(bullets).length > 0) {
             console.log("Update bullets")
