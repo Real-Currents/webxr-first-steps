@@ -61,6 +61,8 @@ export default async function setupScene (scene, camera, controllers) {
     // Wavy Floor
     const floor = new THREE.Mesh(geometry, material);
 
+    floor.position.y += 0.25;
+
     const rotatingTargetGroup = new THREE.Group();
 
     // Rotating Cube
