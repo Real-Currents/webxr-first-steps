@@ -319,6 +319,9 @@ export default async function setupScene (scene, camera, controllers) {
             });
         }
 
+        // ensure GSAP animations are synchronized with WebXR frame updates
+        gsap.ticker.tick(delta);
+
         // update the time uniform
         floor.material.uniforms.time.value = time;
 
