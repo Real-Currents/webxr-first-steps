@@ -3,19 +3,6 @@
   "version": "1.0.0",
   "description": "",
   "main": "src/main.js",
-  "scripts": {
-    "build": "vite build",
-    "dev": "vite --host 0.0.0.0",
-    "format": "prettier --write .",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview --host 0.0.0.0",
-    "render:readme": "quarto render README.qmd --to gfm --output README.md",
-    "start": "vite --host 0.0.0.0 --open",
-    "start-local": "vite --config ../vite.config.local.js",
-    "test": "jest --no-cache",
-    "test:clean": "jest --clearCache",
-    "type:check": "tsc --noEmit"
-  },
   "author": "",
   "license": "MIT",
   "dependencies": {
@@ -33,5 +20,18 @@
     "rollup-plugin-shader": "^0.0.3",
     "vite": "^5.4.11",
     "vite-plugin-mkcert": "^1.17.6"
+  },
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite --host 0.0.0.0",
+    "format": "prettier --write .",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview --host 0.0.0.0",
+    "render:readme": "quarto render README.qmd --to gfm --output README.md",
+    "start": "python -m http.server -d dist 3000",
+    "start-local": "vite --config ../vite.config.local.js",
+    "test": "jest --no-cache",
+    "test:clean": "jest --clearCache",
+    "type:check": "tsc --noEmit"
   }
 }

@@ -1,35 +1,34 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import { XR_BUTTONS } from "gamepad-wrapper";
+import { Text } from "troika-three-text";
 
-import planeGeometry from "./geometry/planeGeometry";
-import meshMaterial from "./material/meshMaterial";
 import boxGeometry from "./geometry/boxGeometry";
-import {XR_BUTTONS} from "gamepad-wrapper";
 import bulletGeometry from "./geometry/bulletGeometry";
+import meshMaterial from "./material/meshMaterial";
 
-import defaultVertexShader from './shaders/default/vertexShader.glsl';
 import defaultFragmentShader from './shaders/default/fragmentShader.glsl';
 
+// import defaultVertexShader from './shaders/default/vertexShader.glsl';
 import wavesVertexShader from './shaders/waves/vertexShader.glsl';
-import {Text} from "troika-three-text";
 
 
 const bulletSpeed = 3;
 const bulletTimeToLive = 5;
 const bullets = {};
-const forwardVector = new THREE.Vector3(0, 0, -1);
 
-const loader = new GLTFLoader();
+const gltfLoader = new GLTFLoader();
+
+const audioLoader = new THREE.AudioLoader();
+
+const listener = new THREE.AudioListener();
 
 let waiting_for_confirmation = false;
 
-const SIZE = 4;
+const SIZE = 10;
 const RESOLUTION = 512;
 
-export default async function setupScene (scene, camera, controllers, player) {
-
-    // Set player view
-    player.add(camera);
+export default async function setupScene (scene, camera, controllers) {
 
     const uniforms = {
         ...THREE.ShaderLib.physical.uniforms,
@@ -100,22 +99,9 @@ export default async function setupScene (scene, camera, controllers, player) {
         this.rotation.y += y;
     }
 
-    const scoreText = new Text();
-    scoreText.fontSize = 0.52;
-    scoreText.font = "fonts/SpaceMono-Bold.ttf";
-    scoreText.position.z = -2;
-    scoreText.color = 0xffa276;
-    scoreText.anchorX = 'center';
-    scoreText.anchorY = 'middle';
+    const scoreText = new Text();;
 
-    function updateScoreDisplay (new_score) {
-        const clampedScore = Math.max(0, Math.min(9999, new_score));
-        const displayScore = clampedScore.toString().padStart(4, '0');
-        scoreText.text = displayScore;
-        scoreText.sync();
-    }
-
-    loader.load("assets/spacestation.glb", (gltf_file) => {
+    gltfLoader.load("assets/spacestation.glb", (gltf_file) => {
         const scene_posistion = { x: 0, y: 0, z: -1 };
 
         const space_station_scene = gltf_file.scene;
@@ -124,12 +110,18 @@ export default async function setupScene (scene, camera, controllers, player) {
         space_station_scene.position.z += scene_posistion.z;
         scene.add(gltf_file.scene);
 
+        scene.add(floor);
+
         // Add the score text to the scene
-        scene.add(scoreText);
+        scoreText.fontSize = 0.52;
+        scoreText.font = "assets/fonts/SpaceMono-Bold.ttf";
+        scoreText.position.z = -2;
+        scoreText.color = 0xffa276;
+        scoreText.anchorX = 'center';
+        scoreText.anchorY = 'middle'
         scoreText.position.set(0 + scene_posistion.x, 0.67 + scene_posistion.y, -1.44 + scene_posistion.z);
         scoreText.rotateX(-Math.PI / 3.3);
-
-        scene.add(floor);
+        scene.add(scoreText);
 
         scene.add(rotatingTargetGroup);
 
@@ -139,6 +131,24 @@ export default async function setupScene (scene, camera, controllers, player) {
             console.log("Face:", face);
         });
     });
+
+    // Score sound
+    const scoreSound = new THREE.PositionalAudio(listener);
+    audioLoader.load('assets/score.ogg', buffer => {
+        scoreSound.setBuffer(buffer);
+        scoreText.add(scoreSound);
+    });
+
+    scoreSound.play();
+
+    scoreText.sync();
+
+    function updateScoreDisplay (new_score) {
+        const clampedScore = Math.max(0, Math.min(9999, new_score));
+        const displayScore = clampedScore.toString().padStart(4, '0');
+        scoreText.text = displayScore;
+        scoreText.sync();
+    }
 
     return function (currentSession, delta, time, text, updateData) {
 
@@ -176,12 +186,12 @@ export default async function setupScene (scene, camera, controllers, player) {
 
                 console.log("bullets:", bullets);
 
-                data["action"] = "Shoot";
+                data["event"] = "Shoot";
                 data["position"] = bullet.position;
                 data["quaternion"] = bullet.quaternion;
 
                 if (!!waiting_for_confirmation) {
-                    console.log("Cancel action");
+                    console.log("Cancel event");
                     waiting_for_confirmation = false;
                 }
 
@@ -190,11 +200,11 @@ export default async function setupScene (scene, camera, controllers, player) {
             } else if (gamepad.getButtonClick(XR_BUTTONS.BUTTON_1)) {
                 console.log("BUTTON_2 (A) on right controller was activated:", XR_BUTTONS.BUTTON_2, gamepad);
                 if (!!waiting_for_confirmation) {
-                    console.log("Confirm action");
+                    console.log("Confirm event");
                     waiting_for_confirmation = false;
                     console.log("End session");
 
-                    data["action"] = "End session confirmed";
+                    data["event"] = "End session confirmed";
                     data["waiting_for_confirmation"] = waiting_for_confirmation;
 
                     currentSession.end();
@@ -204,17 +214,17 @@ export default async function setupScene (scene, camera, controllers, player) {
                 console.log("BUTTON_2 (B) on right controller was activated:", XR_BUTTONS.BUTTON_2, gamepad);
 
                 if (!!waiting_for_confirmation) {
-                    console.log("Cancel action");
+                    console.log("Cancel event");
                     waiting_for_confirmation = false;
 
-                    data["action"] = "End session cancelled";
+                    data["event"] = "End session cancelled";
                     data["waiting_for_confirmation"] = waiting_for_confirmation;
 
                 } else {
                     console.log("Waiting for confirmation...")
                     waiting_for_confirmation = true;
 
-                    data["action"] = "End session initiated";
+                    data["event"] = "End session initiated";
                     data["waiting_for_confirmation"] = waiting_for_confirmation;
 
                 }
@@ -226,10 +236,10 @@ export default async function setupScene (scene, camera, controllers, player) {
                         if (gamepad.getButtonClick(XR_BUTTONS[b])) {
                             console.log("Button on right controller was activated:", XR_BUTTONS[b], gamepad);
                             if (!!waiting_for_confirmation) {
-                                console.log("Cancel action");
+                                console.log("Cancel event");
                                 waiting_for_confirmation = false;
 
-                                data["action"] = "End session cancelled";
+                                data["event"] = "End session cancelled";
                             }
 
                             data["waiting_for_confirmation"] = waiting_for_confirmation;
@@ -250,6 +260,11 @@ export default async function setupScene (scene, camera, controllers, player) {
                     scene.remove(bullet);
                     delete bullets[bullet.uuid];
 
+                    if (scoreSound.isPlaying) {
+                        scoreSound.stop();
+                    }
+                    scoreSound.play();
+
                     // make target disappear, and then reappear at a different place after 2 seconds
                     rotatingTargetGroup.visible = false;
                     rotatingTargetGroup.position.x = Math.random() * 5 - 2.5;
@@ -259,10 +274,10 @@ export default async function setupScene (scene, camera, controllers, player) {
                         rotatingTargetGroup.visible = true;
                     }, 2000);
 
-                    score += 10; // Update the score when a target is hit\
+                    score += 10; // Update the score when a target is hit
 
-                    if (!data.hasOwnProperty("action")) {
-                        data["action"] = "Hit";
+                    if (!data.hasOwnProperty("event")) {
+                        data["event"] = "Hit";
                     }
                     data["score"] = score;
 
@@ -285,17 +300,17 @@ export default async function setupScene (scene, camera, controllers, player) {
             });
         }
 
-        if (data.hasOwnProperty("action") && typeof updateData === "function") {
-            updateData(data);
-        }
-
         // update the time uniform
         floor.material.uniforms.time.value = time;
 
-        rotatingMesh.material = cube_faces;
-
         rotatingTargetGroup.rotX(0.01);
         rotatingTargetGroup.rotY(0.01);
+
+        rotatingMesh.material = cube_faces;
+
+        if (data.hasOwnProperty("event") && typeof updateData === "function") {
+            updateData(data);
+        }
 
     }
 }

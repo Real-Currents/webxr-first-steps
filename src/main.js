@@ -2,7 +2,6 @@ import * as THREE from "three";
 
 import { XRDevice, metaQuest3 } from 'iwer';
 import { DevUI } from '@iwer/devui';
-import { gsap } from 'gsap';
 import { GamepadWrapper, XR_BUTTONS } from 'gamepad-wrapper';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
@@ -13,6 +12,10 @@ import Stats from "https://unpkg.com/three@0.118.3/examples/jsm/libs/stats.modul
 
 import setupScene from "./setupScene";
 import { annotateScene } from "./annotateScene";
+
+const audioLoader = new THREE.AudioLoader();
+
+const listener = new THREE.AudioListener();
 
 let currentSession;
 
@@ -119,12 +122,20 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
     const player = new THREE.Group();
     scene.add(player);
 
+    // Laser sound
+    const laserSound = new THREE.PositionalAudio(listener);
+
     for (let i = 0; i < 2; i++) {
         const raySpace = renderer.xr.getController(i);
         const gripSpace = renderer.xr.getControllerGrip(i);
         const mesh = controllerModelFactory.createControllerModel(gripSpace);
 
         gripSpace.add(mesh);
+
+        audioLoader.load('assets/laser.ogg', buffer => {
+            laserSound.setBuffer(buffer);
+            gripSpace.add(laserSound);
+        });
 
         gripSpace.addEventListener('connected', (e) => {
 
@@ -158,12 +169,18 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
 
     const data_pad_data = document.getElementById("data-pad-data");
 
-    const updateScene = await setup(scene, camera, controllers, player);
+    const updateScene = await setup(scene, camera, controllers);
 
     const updateSceneAnnotations = annotateScene(
         scene, data_pad, 2048, 2048,
         "48px", { x: 0, y: 3, z: -5 }
     );
+
+    // Set player audio
+    camera.add(listener);
+
+    // Set player view
+    player.add(camera);
 
     updateSceneAnnotations(currentSession, clock.getDelta(), clock.getElapsedTime(), data_pad);
 
@@ -184,16 +201,28 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
             time,
             score,
             function updateData (data) {
-                score = (data.hasOwnProperty("score")) ? data.score : score;
-
-                const new_data = JSON.stringify(data, null, 4);
+                const new_data = JSON.stringify(data, null, 2);
 
                 data_pad_data.innerHTML = data_pad_data.innerHTML + "<br />" + new_data;
+
+                if (data.hasOwnProperty("event")) {
+                    if (data["event"].match(/Shoot/) !== null) {
+                        if (laserSound.isPlaying) {
+                            laserSound.stop();
+                        }
+                        laserSound.play();
+                    }
+                }
+
+                score = (data.hasOwnProperty("score")) ? data.score : score;
 
                 if (score > 0) {
                     console.log("Score:", score);
                     updateSceneAnnotations(currentSession, delta, time, data_pad,
-                        "Your new score is " + score + " \n" + new_data);
+                        "Your new score is " + score + " \n" +
+                        new_data.replace(/\s/, "")
+                    );
+
                 } else {
                     updateSceneAnnotations(currentSession, delta, time, data_pad);
                 }
@@ -209,7 +238,7 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
 
     // Note: Added WebXR session handling features
     // From vr-paint example and VRButton.js
-    function startAR() {
+    function startAR () {
         const sessionInit = {
             optionalFeatures: [
                 "local-floor",
@@ -227,14 +256,18 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
             .then(onSessionStarted);
     }
 
-    async function onSessionStarted(session) {
+    async function onSessionStarted (session) {
         session.addEventListener("end", onSessionEnded);
         //renderer.xr.setReferenceSpaceType("local");
         await renderer.xr.setSession(session);
         currentSession = session;
+        if (laserSound.isPlaying) {
+            laserSound.stop();
+        }
+        laserSound.play();
     }
 
-    function onSessionEnded() {
+    function onSessionEnded () {
         currentSession.removeEventListener("end", onSessionEnded);
         currentSession = null;
     }

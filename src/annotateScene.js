@@ -3,9 +3,9 @@ import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import { Text } from 'troika-three-text';
 
-import lineMaterial from "./material/lineMaterial";
 import planeGeometry from "./geometry/planeGeometry";
-import meshMaterial from "./material/meshMaterial";
+import lineMaterial from "./material/lineMaterial";
+
 
 const fontLoader = new FontLoader();
 const textureLoader = new THREE.TextureLoader();
@@ -100,7 +100,7 @@ export function annotateScene (scene, div, screenWidth, screenHeight, fontSize, 
         transparent: true,
         alphaTest: 0.025
     });
-    const screen = new THREE.Mesh(planeGeometry, screenCanvas); // meshMaterial);
+    const screen = new THREE.Mesh(planeGeometry, screenCanvas);
     screen.position.x = x;
     screen.position.y = y;
     screen.position.z = -0.5 + z;
@@ -118,7 +118,7 @@ export function annotateScene (scene, div, screenWidth, screenHeight, fontSize, 
 
     scene.add(screen);
 
-    fontLoader.load( "fonts/comfortaa-regular.json", function ( font ) {
+    fontLoader.load( "assets/fonts/comfortaa-regular.json", function ( font ) {
 
         console.log("FontLoader loaded: ", font);
 
@@ -144,7 +144,7 @@ export function annotateScene (scene, div, screenWidth, screenHeight, fontSize, 
 
     const torikaText = new Text();
     torikaText.fontSize = 0.75;
-    torikaText.font = "fonts/comfortaa-bold-webfont.ttf";
+    torikaText.font = "assets/fonts/comfortaa-bold-webfont.ttf";
     torikaText.color = 0xffa276;
     torikaText.anchorX = 'center';
     torikaText.anchorY = 'middle';
