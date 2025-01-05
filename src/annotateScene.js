@@ -11,6 +11,8 @@ const fontLoader = new FontLoader();
 const textureLoader = new THREE.TextureLoader();
 const base64_url = [ "" ];
 
+const greeting = "Hello, WebXR!"
+
 export function annotateScene (scene, div, screenWidth, screenHeight, fontSize, position) {
 
     const ctx = document.createElement('canvas').getContext('2d');
@@ -71,7 +73,7 @@ export function annotateScene (scene, div, screenWidth, screenHeight, fontSize, 
                         <div xmlns="http://www.w3.org/1999/xhtml">
                             ${div.innerHTML
                                 .replace("border-radius: 0px", "border-radius: 20px")
-                                .replace("red", "rgba(255, 63, 127, 0.05)")}
+                                .replace("grey", "rgba(255, 63, 127, 0.05)")}
                         </div>
                     </foreignObject>
                 </svg>
@@ -101,13 +103,13 @@ export function annotateScene (scene, div, screenWidth, screenHeight, fontSize, 
     const screen = new THREE.Mesh(planeGeometry, screenCanvas); // meshMaterial);
     screen.position.x = x;
     screen.position.y = y;
-    screen.position.z = z;
+    screen.position.z = -0.5 + z;
 
     // Create points on a line
     const points = [];
-    points.push( new THREE.Vector3( -5 + x, 0 + y, 0 + z ) );
-    points.push( new THREE.Vector3( 0 + x, 5 + y, 0 + z ) );
-    points.push( new THREE.Vector3( 5 + x, 0 + y, z ) );
+    points.push( new THREE.Vector3( -5 + x, -2.5 + y, 0 + z ) );
+    points.push( new THREE.Vector3( 0 + x, 2.5 + y, 0 + z ) );
+    points.push( new THREE.Vector3( 5 + x, -2.5 + y, z ) );
     const geometry = new THREE.BufferGeometry().setFromPoints( points );
 
     const line = new THREE.Line(geometry, lineMaterial);
@@ -116,14 +118,12 @@ export function annotateScene (scene, div, screenWidth, screenHeight, fontSize, 
 
     scene.add(screen);
 
-    texture.needsUpdate = true; // <= DANGEROUS when used with canvas (2d)!
-
-    fontLoader.load( 'fonts/comfortaa-regular.json', function ( font ) {
+    fontLoader.load( "fonts/comfortaa-regular.json", function ( font ) {
 
         console.log("FontLoader loaded: ", font);
 
         const textMesh = new THREE.Line(new TextGeometry(
-            'Hello three.js!', {
+            greeting, {
                 font: font,
                 size: 0.5,
                 depth: 0.01,
@@ -136,15 +136,32 @@ export function annotateScene (scene, div, screenWidth, screenHeight, fontSize, 
             }), lineMaterial);
 
         textMesh.position.x = -2.5 + x;
-        textMesh.position.y = 5 + y;
+        textMesh.position.y = 2.5 + y;
         textMesh.position.z = 0 + z;
 
         scene.add(textMesh);
     });
 
+    const torikaText = new Text();
+    torikaText.fontSize = 0.75;
+    torikaText.font = "fonts/comfortaa-bold-webfont.ttf";
+    torikaText.color = 0xffa276;
+    torikaText.anchorX = 'center';
+    torikaText.anchorY = 'middle';
+
+    torikaText.position.x = 0.0 + x;
+    torikaText.position.y = 2.5 + y;
+    torikaText.position.z = 0.5 + z;
+
+    torikaText.text = greeting;
+    torikaText.sync();
+
+    scene.add(torikaText);
+
     return function (currentSession, delta, time, div, text) {
         // requestAnimationFrame(render);
         if (!!text) {
+            texture.needsUpdate = true; // <= DANGEROUS when used with canvas (2d)!
             renderScreen(text);
         } else {
             renderScreen(div.textContent);

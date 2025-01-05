@@ -165,6 +165,8 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
         "48px", { x: 0, y: 3, z: -5 }
     );
 
+    updateSceneAnnotations(currentSession, clock.getDelta(), clock.getElapsedTime(), data_pad);
+
     renderer.setAnimationLoop(() => {
         const delta = clock.getDelta();
         const time = clock.getElapsedTime();
@@ -181,17 +183,24 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
             delta,
             time,
             score,
-            function updateDOMData (data) {
-                data_pad_data.innerHTML = data_pad_data.innerHTML + "<br />" + JSON.stringify(data, null, 4);
+            function updateData (data) {
+                score = (data.hasOwnProperty("score")) ? data.score : score;
+
+                const new_data = JSON.stringify(data, null, 4);
+
+                data_pad_data.innerHTML = data_pad_data.innerHTML + "<br />" + new_data;
+
+                if (score > 0) {
+                    console.log("Score:", score);
+                    updateSceneAnnotations(currentSession, delta, time, data_pad,
+                        "Your new score is " + score + " \n" + new_data);
+                } else {
+                    updateSceneAnnotations(currentSession, delta, time, data_pad);
+                }
+
                 return data_pad_data;
             }
         );
-
-        if (score > 0) {
-            updateSceneAnnotations(currentSession, delta, time, data_pad, "Your new score is " + score);
-        } else {
-            updateSceneAnnotations(currentSession, delta, time, data_pad);
-        }
 
         renderer.render(scene, camera);
 

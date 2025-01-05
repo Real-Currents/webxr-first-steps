@@ -15,7 +15,7 @@ import {Text} from "troika-three-text";
 
 
 const bulletSpeed = 3;
-const bulletTimeToLive = 1;
+const bulletTimeToLive = 5;
 const bullets = {};
 const forwardVector = new THREE.Vector3(0, 0, -1);
 
@@ -70,9 +70,25 @@ export default async function setupScene (scene, camera, controllers, player) {
         // ... or Controller mesh
         controllerModelFactory.createControllerModel(controllers.left.gripSpace);
 
+    // Later used for updating material of each rotating cube face...
+    const cube_faces = [
+        material, // hidden_box_face,
+        material,
+        material,
+        material,
+        material,
+        material,
+    ];
+
+    const hidden_box_face = meshMaterial.clone();
+    hidden_box_face.opacity = 0.0;
+    hidden_box_face.transparent = true;
+
     rotatingTargetGroup.add(rotatingMesh);
 
+    rotatingTargetGroup.position.x = 0;
     rotatingTargetGroup.position.y = 2;
+    rotatingTargetGroup.position.z = -2.5;
 
     rotatingTargetGroup.rotX = function (x) {
         // console.log(this);
@@ -124,7 +140,14 @@ export default async function setupScene (scene, camera, controllers, player) {
         });
     });
 
-    return function (currentSession, delta, time, text, updateDOMData) {
+    return function (currentSession, delta, time, text, updateData) {
+
+        const data = {};
+
+        let score = text.toString().match(/(\d+)$/)[0];
+
+        score = (!!score) ? parseInt(score) : 0;
+
         if (controllers.hasOwnProperty("right") && controllers.right !== null) {
 
             const { gamepad, raySpace } = controllers.right;
@@ -153,14 +176,16 @@ export default async function setupScene (scene, camera, controllers, player) {
 
                 console.log("bullets:", bullets);
 
-                if (typeof updateDOMData === "function") {
-                    updateDOMData({
-                        action: "Shoot",
-                        position: bullet.position,
-                        quaternion: bullet.quaternion,
-                        waiting_for_confirmation: waiting_for_confirmation
-                    });
+                data["action"] = "Shoot";
+                data["position"] = bullet.position;
+                data["quaternion"] = bullet.quaternion;
+
+                if (!!waiting_for_confirmation) {
+                    console.log("Cancel action");
+                    waiting_for_confirmation = false;
                 }
+
+                data["waiting_for_confirmation"] = waiting_for_confirmation;
 
             } else if (gamepad.getButtonClick(XR_BUTTONS.BUTTON_1)) {
                 console.log("BUTTON_2 (A) on right controller was activated:", XR_BUTTONS.BUTTON_2, gamepad);
@@ -168,12 +193,10 @@ export default async function setupScene (scene, camera, controllers, player) {
                     console.log("Confirm action");
                     waiting_for_confirmation = false;
                     console.log("End session");
-                    if (typeof updateDOMData === "function") {
-                        updateDOMData({
-                            action: "End session confirmed",
-                            waiting_for_confirmation: waiting_for_confirmation
-                        });
-                    }
+
+                    data["action"] = "End session confirmed";
+                    data["waiting_for_confirmation"] = waiting_for_confirmation;
+
                     currentSession.end();
                 }
 
@@ -183,21 +206,17 @@ export default async function setupScene (scene, camera, controllers, player) {
                 if (!!waiting_for_confirmation) {
                     console.log("Cancel action");
                     waiting_for_confirmation = false;
-                    if (typeof updateDOMData === "function") {
-                        updateDOMData({
-                            action: "End session cancelled",
-                            waiting_for_confirmation: waiting_for_confirmation
-                        });
-                    }
+
+                    data["action"] = "End session cancelled";
+                    data["waiting_for_confirmation"] = waiting_for_confirmation;
+
                 } else {
                     console.log("Waiting for confirmation...")
                     waiting_for_confirmation = true;
-                    if (typeof updateDOMData === "function") {
-                        updateDOMData({
-                            action: "End session initiated",
-                            waiting_for_confirmation: waiting_for_confirmation
-                        });
-                    }
+
+                    data["action"] = "End session initiated";
+                    data["waiting_for_confirmation"] = waiting_for_confirmation;
+
                 }
 
             } else {
@@ -206,37 +225,58 @@ export default async function setupScene (scene, camera, controllers, player) {
                         // console.log("Check button: ", XR_BUTTONS[b]);
                         if (gamepad.getButtonClick(XR_BUTTONS[b])) {
                             console.log("Button on right controller was activated:", XR_BUTTONS[b], gamepad);
+                            if (!!waiting_for_confirmation) {
+                                console.log("Cancel action");
+                                waiting_for_confirmation = false;
+
+                                data["action"] = "End session cancelled";
+                            }
+
+                            data["waiting_for_confirmation"] = waiting_for_confirmation;
                         }
                     }
                 }
             }
         }
 
-        // update the time uniform
-        floor.material.uniforms.time.value = time;
-
-        const hidden_box_face = meshMaterial.clone();
-        hidden_box_face.opacity = 0.0;
-        hidden_box_face.transparent = true;
-
-        rotatingMesh.material = [
-            material, // hidden_box_face,
-            material,
-            material,
-            material,
-            material,
-            material,
-        ];
-
-        rotatingTargetGroup.rotX(0.01);
-        rotatingTargetGroup.rotY(0.01);
-
         if (Object.values(bullets) !== null && Object.values(bullets).length > 0) {
-            console.log("Update bullets")
+            console.log("Update bullets");
+
             Object.values(bullets).forEach((bullet) => {
-                if (bullet.userData.timeToLive < 0) {
+                const distance_to_target = rotatingTargetGroup.position.distanceTo(bullet.position);
+                
+                if (distance_to_target < 1) {
+                    // Check target intersection
                     scene.remove(bullet);
                     delete bullets[bullet.uuid];
+
+                    // make target disappear, and then reappear at a different place after 2 seconds
+                    rotatingTargetGroup.visible = false;
+                    rotatingTargetGroup.position.x = Math.random() * 5 - 2.5;
+                    rotatingTargetGroup.position.z = Math.random() * -5;
+
+                    setTimeout(() => {
+                        rotatingTargetGroup.visible = true;
+                    }, 2000);
+
+                    score += 10; // Update the score when a target is hit\
+
+                    if (!data.hasOwnProperty("action")) {
+                        data["action"] = "Hit";
+                    }
+                    data["score"] = score;
+
+                    data["waiting_for_confirmation"] = waiting_for_confirmation;
+
+                    console.log("data: ", data);
+
+                    updateScoreDisplay(score);
+
+                } else if (bullet.userData.timeToLive < 0) {
+                    // Check bullet life cycle
+                    scene.remove(bullet);
+                    delete bullets[bullet.uuid];
+
                 } else {
                     const deltaVelocity = bullet.userData.velocity.clone().multiplyScalar(delta);
                     bullet.position.add(deltaVelocity);
@@ -245,9 +285,17 @@ export default async function setupScene (scene, camera, controllers, player) {
             });
         }
 
-        const score = text.toString().match(/(\d+)$/)[0]
+        if (data.hasOwnProperty("action") && typeof updateData === "function") {
+            updateData(data);
+        }
 
-        updateScoreDisplay(score);
+        // update the time uniform
+        floor.material.uniforms.time.value = time;
+
+        rotatingMesh.material = cube_faces;
+
+        rotatingTargetGroup.rotX(0.01);
+        rotatingTargetGroup.rotY(0.01);
 
     }
 }
