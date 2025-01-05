@@ -212,6 +212,17 @@ async function initScene (setup = (scene, camera, controllers, players) => {}) {
                         }
                         laserSound.play();
                     }
+
+                    if (data["event"].match(/Hit/) !== null) {
+                        if (controllers.hasOwnProperty("right") && controllers.right !== null) {
+                            const { gamepad } = controllers.right;
+
+                            try {
+                                const hapticActuator = gamepad.getHapticActuator(0).pulse(0.6, 100);
+                            } catch (e) {}
+                        }
+
+                    }
                 }
 
                 score = (data.hasOwnProperty("score")) ? data.score : score;

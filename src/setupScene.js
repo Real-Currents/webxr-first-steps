@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { XR_BUTTONS } from "gamepad-wrapper";
+import { gsap } from "gsap";
 import { Text } from "troika-three-text";
 
 import boxGeometry from "./geometry/boxGeometry";
@@ -257,7 +258,7 @@ export default async function setupScene (scene, camera, controllers) {
             Object.values(bullets).forEach((bullet) => {
                 const distance_to_target = rotatingTargetGroup.position.distanceTo(bullet.position);
                 
-                if (distance_to_target < 1) {
+                if (distance_to_target < 0.75) {
                     // Check target intersection
                     scene.remove(bullet);
                     delete bullets[bullet.uuid];
@@ -267,14 +268,30 @@ export default async function setupScene (scene, camera, controllers) {
                     }
                     scoreSound.play();
 
-                    // make target disappear, and then reappear at a different place after 2 seconds
-                    rotatingTargetGroup.visible = false;
-                    rotatingTargetGroup.position.x = Math.random() * 5 - 2.5;
-                    rotatingTargetGroup.position.z = Math.random() * -5;
+                    gsap.to(rotatingTargetGroup.scale, {
+                        duration: 0.3,
+                        x: 0,
+                        y: 0,
+                        z: 0,
+                        onComplete: () => {
+                            // make target disappear, and then reappear at a different place after 1 second
+                            rotatingTargetGroup.visible = false;
+                            rotatingTargetGroup.position.x = Math.random() * 5 - 2.5;
+                            rotatingTargetGroup.position.z = Math.random() * -5;
 
-                    setTimeout(() => {
-                        rotatingTargetGroup.visible = true;
-                    }, 2000);
+                            setTimeout(() => {
+                                rotatingTargetGroup.visible = true;
+
+                                // Scale back up the target
+                                gsap.to(rotatingTargetGroup.scale, {
+                                    duration: 0.3,
+                                    x: 1,
+                                    y: 1,
+                                    z: 1,
+                                });
+                            }, 1000);
+                        },
+                    });
 
                     score += 10; // Update the score when a target is hit
 
